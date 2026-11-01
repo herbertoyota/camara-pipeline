@@ -1,0 +1,25 @@
+# Ambiente virtual
+.venv/
+
+# Banco DuckDB e arquivos temporários
+*.duckdb
+*.duckdb.wal
+
+# Dados brutos e intermediários: baixados pelo src/download.py, não vão ao git
+data/raw/*
+!data/raw/.gitkeep
+data/refined/*
+!data/refined/.gitkeep
+data/marts/*
+!data/marts/.gitkeep
+
+# Segredos: salt do hash de CPF vem de variável de ambiente, nunca do repositório
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor
+.vscode/
