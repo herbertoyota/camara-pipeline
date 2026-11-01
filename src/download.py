@@ -50,7 +50,8 @@ def baixar_ano(ano: int, destino: Path = RAW_DIR, forcar: bool = False) -> Path:
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--forcar"]
-    if len(args) != 1 or not args[0].isdigit():
-        sys.exit("Uso: python -m src.download <ano> [--forcar]   ex.: python -m src.download 2025")
-    baixar_ano(int(args[0]), forcar="--forcar" in sys.argv)
+    anos = [a for a in sys.argv[1:] if a != "--forcar"]
+    if not anos or not all(a.isdigit() for a in anos):
+        sys.exit("Uso: python -m src.download <ano> [<ano> ...] [--forcar]   ex.: python -m src.download 2023 2024")
+    for ano in anos:
+        baixar_ano(int(ano), forcar="--forcar" in sys.argv)
