@@ -23,7 +23,7 @@ HASH_PF = hashlib.sha256(b"sal-teste|44444444444").hexdigest()
 def linha(**campos):
     base = {"ano_arquivo": 2024, "mes": 1, "id_deputado": 1, "eh_lideranca": False,
             "sigla_partido": "AAA", "sigla_uf": "SP", "documento_fornecedor": "",
-            "tipo_documento_fornecedor": "CNPJ", "fornecedor_nome": "", "valor_documento": 0,
+            "tipo_documento_fornecedor": "CNPJ", "fornecedor_nome": "", "tipo_despesa": "TELEFONIA", "valor_documento": 0,
             "valor_glosa": 0, "valor_liquido": 0, "liquido_diverge": False}
     base.update(campos)
     return base
@@ -43,7 +43,7 @@ def con():
     c.execute("""CREATE TABLE refined.despesas_deputado (
         ano_arquivo INTEGER, mes INTEGER, id_deputado INTEGER, eh_lideranca BOOLEAN,
         sigla_partido VARCHAR, sigla_uf VARCHAR, documento_fornecedor VARCHAR,
-        tipo_documento_fornecedor VARCHAR, fornecedor_nome VARCHAR, valor_documento DECIMAL(18,2),
+        tipo_documento_fornecedor VARCHAR, fornecedor_nome VARCHAR, tipo_despesa VARCHAR, valor_documento DECIMAL(18,2),
         valor_glosa DECIMAL(18,2), valor_liquido DECIMAL(18,2), liquido_diverge BOOLEAN)""")
     c.execute("CREATE TABLE refined.deputados (id_deputado INTEGER, nome_parlamentar VARCHAR)")
     c.execute("INSERT INTO refined.deputados VALUES (1, 'Dep Um')")
@@ -150,3 +150,18 @@ def test_total_inclui_periodo_TOTAL(con):
         "SELECT gasto_total FROM marts.concentracao_fornecedores WHERE periodo = 'TOTAL'"
     ).fetchone()[0]
     assert float(total) == 2410.0
+
+
+def test_hhi_so_com_fornecedores_de_total_positivo(con):
+    # Fornecedor com saldo negativo (estornos maiores que as compras): fica fora do HHI.
+    inserir(con, [linha(documento_fornecedor="66666666000166", fornecedor_nome="NEGATIVO",
+                        valor_documento=-40, valor_glosa=0, valor_liquido=-40)])
+    construir_marts(con)
+    gasto, forn, hhi, excluidos, valor_excl = con.execute(
+        "SELECT gasto_total, fornecedores, hhi, fornecedores_excluidos_hhi, valor_excluido_hhi "
+        "FROM marts.concentracao_fornecedores WHERE periodo = '2024'"
+    ).fetchone()
+    assert float(gasto) == 2370.0 and forn == 14
+    assert excluidos == 1 and float(valor_excl) == -40.0
+    positivos = [800, 800, 600, 80, 50] + [10] * 8  # os 13 fornecedores com total positivo
+    assert float(hhi) == pytest.approx(sum((100.0 * v / 2370.0) ** 2 for v in positivos), rel=1e-6)

@@ -12,6 +12,7 @@ SELECT
     arg_max(b.partido, b.mes)                                   AS partido,
     arg_max(b.uf, b.mes)                                        AS uf,
     count(*)                                                    AS linhas,
+    count(DISTINCT b.mes)                                       AS meses_com_despesa,
     COALESCE(sum(b.valor_liquido), 0)                           AS valor_liquido_total,
     COALESCE(sum(b.valor_liquido) FILTER (WHERE b.eh_convencao_sinal), 0) AS valor_convencao_sinal,
     count(*) FILTER (WHERE b.divergente_inexplicada)                   AS linhas_divergentes

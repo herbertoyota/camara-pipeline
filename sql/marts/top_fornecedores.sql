@@ -21,6 +21,7 @@ ranqueado AS (
         f.tipo_documento_fornecedor,
         f.identificador,
         f.fornecedor_nome,
+        f.tipo_despesa_predominante,
         f.valor_liquido_total,
         f.linhas
     FROM marts.gasto_por_fornecedor f
@@ -31,6 +32,7 @@ SELECT
     r.tipo_documento_fornecedor,
     r.identificador,
     r.fornecedor_nome,
+    r.tipo_despesa_predominante,
     r.valor_liquido_total,
     r.linhas,
     100.0 * r.valor_liquido_total / t.gasto_total               AS participacao_pct

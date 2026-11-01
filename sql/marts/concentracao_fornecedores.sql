@@ -3,12 +3,11 @@
 -- Métricas:
 --   - participacao_top10_pct: parcela do gasto total que os 10 maiores fornecedores concentram.
 --   - hhi: índice de Herfindahl-Hirschman, soma dos quadrados das participações (em %)
---     de cada fornecedor, na escala 0 a 10.000. 10.000 = um fornecedor concentra tudo;
---     próximo de 0 = gasto muito pulverizado.
---   - Participação calculada sobre valor_liquido_total (líquido). Um fornecedor com
---     saldo negativo fica com participação negativa; o quadrado a torna positiva no HHI.
---     Com o padrão de estornos e convenções, isso é raro; a checagem de saldo
---     negativo no top 10 é feita no módulo Python.
+--     na escala 0 a 10.000. 10.000 = um fornecedor concentra tudo; perto de 0 = pulverizado.
+--     Calculado SÓ sobre fornecedores com total positivo no período. Fornecedores com
+--     total zero ou negativo (estornos maiores que as compras) ficam de fora do HHI;
+--     fornecedores_excluidos_hhi e valor_excluido_hhi registram quantos e quanto.
+--   - Participação sempre sobre gasto_total (líquido), para o top 10 e o HHI usarem a mesma base.
 
 CREATE OR REPLACE TABLE marts.concentracao_fornecedores AS
 WITH totais AS (
@@ -33,7 +32,9 @@ SELECT
     t.fornecedores,
     sum(p.valor_liquido_total) FILTER (WHERE p.posicao <= 10)  AS valor_top10,
     sum(p.part_pct) FILTER (WHERE p.posicao <= 10)             AS participacao_top10_pct,
-    sum(p.part_pct * p.part_pct)                               AS hhi
+    sum(p.part_pct * p.part_pct) FILTER (WHERE p.valor_liquido_total > 0) AS hhi,
+    count(*) FILTER (WHERE p.valor_liquido_total <= 0)         AS fornecedores_excluidos_hhi,
+    COALESCE(sum(p.valor_liquido_total) FILTER (WHERE p.valor_liquido_total <= 0), 0) AS valor_excluido_hhi
 FROM totais t
 JOIN participacoes p ON p.periodo = t.periodo
 GROUP BY t.periodo, t.gasto_total, t.fornecedores

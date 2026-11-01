@@ -24,7 +24,7 @@ def inserir(con, linhas):
 def despesa(**campos):
     base = {"ano_arquivo": 2024, "mes": 1, "id_deputado": None, "eh_lideranca": False,
             "sigla_partido": "AAA", "sigla_uf": "SP", "documento_fornecedor": "09296295000160",
-            "tipo_documento_fornecedor": "CNPJ", "fornecedor_nome": "EMPRESA LTDA",
+            "tipo_documento_fornecedor": "CNPJ", "fornecedor_nome": "EMPRESA LTDA", "tipo_despesa": "TELEFONIA",
             "valor_documento": 0, "valor_glosa": 0, "valor_liquido": 0, "liquido_diverge": False}
     base.update(campos)
     return base
@@ -37,7 +37,7 @@ def con():
     c.execute("""CREATE TABLE refined.despesas_deputado (
         ano_arquivo INTEGER, mes INTEGER, id_deputado INTEGER, eh_lideranca BOOLEAN,
         sigla_partido VARCHAR, sigla_uf VARCHAR, documento_fornecedor VARCHAR,
-        tipo_documento_fornecedor VARCHAR, fornecedor_nome VARCHAR, valor_documento DECIMAL(18,2),
+        tipo_documento_fornecedor VARCHAR, fornecedor_nome VARCHAR, tipo_despesa VARCHAR, valor_documento DECIMAL(18,2),
         valor_glosa DECIMAL(18,2), valor_liquido DECIMAL(18,2), liquido_diverge BOOLEAN)""")
     c.execute("CREATE TABLE refined.deputados (id_deputado INTEGER, nome_parlamentar VARCHAR)")
     c.execute("INSERT INTO refined.deputados VALUES (1, 'Dep Um'), (2, 'Dep Dois')")
@@ -125,3 +125,47 @@ def test_mart_por_uf_inclui_lideranca_como_NA(con):
     por_uf = {r[0]: valor(r[1]) for r in con.execute(
         "SELECT uf, valor_liquido_total FROM marts.gasto_por_uf_ano WHERE ano = 2024").fetchall()}
     assert por_uf == {"SP": 150.0, "MG": 190.0, "NA": 40.0}
+
+
+# --- ajustes: mensal e média mensal ----------------------------------------
+#
+# Mensal (deputados, sem liderança):
+#   mês 1: D1 100, D2 200 -> 300 / 2 = 150
+#   mês 2: D1 -30, D2 -60 -> -90 / 2 = -45
+#   mês 3: D1 80, D2 50  -> 130 / 2 = 65
+# Média mensal por deputado = (150 - 45 + 65) / 3 = 170 / 3.
+# Média anual por deputado = 340 / 2 = 170.
+
+def test_gasto_por_deputado_mes_tem_so_deputados_e_totais_certos(con):
+    rows = con.execute(
+        "SELECT id_deputado, mes, valor_liquido_total FROM marts.gasto_por_deputado_mes ORDER BY id_deputado, mes"
+    ).fetchall()
+    assert all(r[0] is not None for r in rows)
+    assert [(r[0], r[1], valor(r[2])) for r in rows] == [
+        (1, 1, 100.0), (1, 2, -30.0), (1, 3, 80.0),
+        (2, 1, 200.0), (2, 2, -60.0), (2, 3, 50.0),
+    ]
+
+
+def test_meses_com_despesa_no_mart_anual(con):
+    meses = con.execute("SELECT id_deputado, meses_com_despesa FROM marts.gasto_por_deputado_ano ORDER BY 1").fetchall()
+    assert meses == [(1, 3), (2, 3)]
+
+
+def test_media_mensal_por_deputado_e_comparada_com_a_anual(con):
+    media_mensal, media_anual = con.execute(
+        "SELECT media_mensal_por_deputado, gasto_medio_por_deputado FROM marts.gasto_resumo_ano WHERE ano = 2024"
+    ).fetchone()
+    assert valor(media_anual) == 170.0
+    assert valor(media_mensal) == pytest.approx(170.0 / 3)
+
+
+def test_partido_mes_conta_deputados_do_mes_e_lideranca_fica_nula(con):
+    rows = con.execute(
+        "SELECT mes, partido, deputados_com_despesa, gasto_medio_por_deputado FROM marts.gasto_por_partido_mes "
+        "WHERE partido IN ('BBB', 'LIDERANCA') ORDER BY partido, mes"
+    ).fetchall()
+    bbb_mes1 = [r for r in rows if r[1] == "BBB" and r[0] == 1][0]
+    assert bbb_mes1[2] == 1 and valor(bbb_mes1[3]) == 200.0
+    lideranca = [r for r in rows if r[1] == "LIDERANCA"][0]
+    assert lideranca[2] == 0 and lideranca[3] is None

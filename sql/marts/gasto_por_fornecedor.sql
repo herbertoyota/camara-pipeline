@@ -14,11 +14,11 @@
 CREATE OR REPLACE TABLE marts.gasto_por_fornecedor AS
 WITH base AS (
     SELECT CAST(ano AS VARCHAR) AS periodo, documento_fornecedor, tipo_documento_fornecedor,
-           fornecedor_nome, valor_liquido
+           fornecedor_nome, tipo_despesa, valor_liquido
     FROM marts.base_gasto
     UNION ALL
     SELECT 'TOTAL' AS periodo, documento_fornecedor, tipo_documento_fornecedor,
-           fornecedor_nome, valor_liquido
+           fornecedor_nome, tipo_despesa, valor_liquido
     FROM marts.base_gasto
 ),
 identificado AS (
@@ -30,6 +30,7 @@ identificado AS (
             ELSE 'ID-' || left(documento_fornecedor, 8)
         END AS identificador,
         fornecedor_nome,
+        tipo_despesa,
         valor_liquido
     FROM base
 )
@@ -40,6 +41,7 @@ SELECT
     identificador,
     mode(fornecedor_nome)                                       AS fornecedor_nome,
     sum(valor_liquido)                                          AS valor_liquido_total,
+    mode(tipo_despesa)                                          AS tipo_despesa_predominante,
     count(*)                                                    AS linhas
 FROM identificado
 GROUP BY periodo, tipo_documento_fornecedor, identificador;

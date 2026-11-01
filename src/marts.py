@@ -18,6 +18,8 @@ SQL_DIR = PROJETO / "sql" / "marts"
 # Ordem importa: a base vem primeiro; os marts de gasto dependem dela.
 ARQUIVOS = (
     "base_gasto",
+    "gasto_por_deputado_mes",
+    "gasto_por_partido_mes",
     "gasto_por_partido_ano",
     "gasto_por_uf_ano",
     "gasto_por_deputado_ano",
@@ -81,6 +83,14 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
         ).fetchone()[0]
         if n != min(10, fornecedores):
             raise RuntimeError(f"top_fornecedores {periodo} tem {n} linhas, esperado {min(10, fornecedores)}")
+
+    # Os meses somam o ano: deputado-mês e partido-mês batem com os marts anuais.
+    if abs(_soma(con, "SELECT sum(valor_liquido_total) FROM marts.gasto_por_deputado_mes")
+           - _soma(con, "SELECT sum(valor_liquido_total) FROM marts.gasto_por_deputado_ano")) > 0.005:
+        raise RuntimeError("gasto_por_deputado_mes não soma gasto_por_deputado_ano")
+    if abs(_soma(con, "SELECT sum(valor_liquido_total) FROM marts.gasto_por_partido_mes")
+           - base) > 0.005:
+        raise RuntimeError("gasto_por_partido_mes não soma o gasto da base")
 
     # O mart por deputado cobre só deputados (sem liderança).
     gasto_deputados = _soma(con, "SELECT sum(valor_liquido) FROM marts.base_gasto WHERE NOT eh_lideranca")
