@@ -9,6 +9,7 @@
 --     confere que nenhum valor não-vazio virou NULL;
 --   - nada é descartado: estornos, datas suspeitas e divergências viram booleanos;
 --   - CPF de fornecedor vira hash SHA-256 salgado; CNPJ fica em claro;
+--   - fornecedor pessoa física (CPF) tem o nome trocado pelo rótulo PESSOA FISICA;
 --   - não entram: cpf do deputado e txtPassageiro (só o booleano tem_passageiro).
 
 CREATE OR REPLACE TABLE refined.despesas AS
@@ -82,7 +83,11 @@ SELECT
     num_sub_cota,
     num_especificacao_sub_cota,
     descricao_especificacao,
-    fornecedor_nome,
+    -- Pessoa física: o nome é dado pessoal, então fica só o hash do CPF.
+    CASE
+        WHEN tipo_documento_fornecedor = 'CPF' THEN 'PESSOA FISICA'
+        ELSE fornecedor_nome
+    END AS fornecedor_nome,
     tipo_documento_fornecedor,
     CASE
         WHEN tipo_documento_fornecedor = 'CPF' THEN sha256($salt || '|' || documento_digitos)

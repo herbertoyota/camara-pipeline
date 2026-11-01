@@ -130,6 +130,21 @@ def test_nome_normalizado(con):
     assert linha(con, "n2")["fornecedor_nome"] == "CORRETORA DE IMOVEIS LTDA"
 
 
+def test_nome_de_pessoa_fisica_vira_rotulo(con):
+    inserir(con, txtNumero="pf", txtCNPJCPF="444.444.444-44", txtFornecedor="Maria da Silva")
+    inserir(con, txtNumero="pj", txtCNPJCPF="09.296.295/0001-60", txtFornecedor="Empresa Ltda")
+    refinar(con)
+    assert linha(con, "pf")["fornecedor_nome"] == "PESSOA FISICA"
+    assert linha(con, "pj")["fornecedor_nome"] == "EMPRESA LTDA"
+
+
+def test_nome_de_pessoa_fisica_nao_aparece_no_refined(con):
+    inserir(con, txtNumero="pf", txtCNPJCPF="444.444.444-44", txtFornecedor="Maria da Silva")
+    refinar(con)
+    texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
+    assert "MARIA" not in texto.upper()
+
+
 def test_documento_cnpj_fica_em_claro(con):
     inserir(con, txtNumero="cnpj", txtCNPJCPF="09.296.295/0001-60")
     refinar(con)
