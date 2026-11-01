@@ -2,7 +2,7 @@
 
 Pipeline de dados em três camadas (`raw`, `refined`, `marts`) com dados abertos da Câmara dos Deputados, feito como projeto final de um curso de engenharia de dados.
 
-> Status: **etapas 1 e 2 de 7 concluídas** (estrutura, download e carga do raw). **Próxima: etapa 3** (limpeza no refined). Os próximos passos estão listados no fim deste README.
+> Status: **etapas 1, 2 e 3 de 7 concluídas** (estrutura, download, carga do raw e limpeza no refined). **Próxima: etapa 4** (deputados e votos). Os próximos passos estão listados no fim deste README.
 
 ## Fonte dos dados
 
@@ -38,7 +38,9 @@ Os arquivos de dados (`data/*`) e o banco `.duckdb` ficam fora do git (ver `.git
 ## Dados pessoais
 
 - **CPF de fornecedor** (`txtCNPJCPF` quando tem 11 dígitos): pessoa física. No refined, CNPJ fica em claro; CPF vira hash SHA-256 com salt vindo da variável de ambiente, nunca do repositório.
-- **CPF do deputado** (coluna `cpf` do arquivo): não é necessário para nenhuma pergunta de negócio. Decisão prevista: não levar para o refined.
+- **CPF do deputado** (coluna `cpf` do arquivo): não é necessário para nenhuma pergunta de negócio. **Não vai para o refined.** Fica só no raw local, que está fora do git.
+- **Nome de passageiro** (`txtPassageiro`): pessoa física. **Não vai para o refined.** Só o booleano `tem_passageiro` é mantido.
+- **Pendente:** `txtFornecedor` de fornecedor pessoa física (CPF) traz o nome da pessoa, por exemplo 375 nomes distintos em 2023–2025. O refined mantém esse nome, porque a regra acima trata só o CPF. Decidir antes de publicar: manter, anonimizar ou remover.
 
 ## Como rodar (etapas 1 e 2)
 
@@ -51,6 +53,32 @@ python -m src.load_raw             # carrega data/raw/*.csv em data/camara.duckd
 ```
 
 O ano de 2026 não é baixado: o arquivo ainda está incompleto. O `load_raw` é re-executável e recria as tabelas em vez de acumular linhas.
+
+### Salt do hash de CPF
+
+A limpeza (`src/clean.py`) exige a variável `CAMARA_SALT`. Sem ela, o comando falha com erro claro.
+
+```powershell
+# Gerar um valor longo e aleatório (uma vez; guarde-o fora do repositório):
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# Definir na sessão antes de rodar a limpeza:
+$env:CAMARA_SALT = "<valor gerado>"
+```
+
+- Nunca grave o salt em arquivo versionado nem o cole em issue, PR ou log.
+- Trocar o salt muda todos os hashes de CPF. Para reproduzir os mesmos hashes, use sempre o mesmo valor.
+- Os testes não leem o salt do ambiente: ele é definido por `monkeypatch`.
+
+### Limpeza (refined)
+
+```powershell
+$env:CAMARA_SALT = "<valor>"
+python -m src.clean      # recria refined.despesas a partir de raw.ceap_2023, _2024 e _2025
+python -m pytest         # testes com dados inventados, sem abrir data/camara.duckdb
+```
+
+A regra fica em `sql/refined/despesas.sql`. O `src/clean.py` executa esse SQL e confere que nenhuma conversão perdeu valor: se um valor ou data não-vazio virou `NULL`, a carga falha.
 
 ## Inspeção do dado bruto (2025)
 
@@ -73,12 +101,33 @@ Arquivo: `Ano-2025.csv`, 209.081 linhas, 32 colunas.
 - No raw, campo vazio fica como `''`, não vira `NULL`. O refined trata isso com `NULLIF(TRIM(col), '')`.
 - A carga confere se a contagem da tabela bate com a do próprio CSV lido pelo DuckDB, e falha se houver `NULL` no raw.
 
+## Limpeza (refined): decisões
+
+Tabela `refined.despesas`: os três anos empilhados com `UNION ALL BY NAME`, uma coluna `ano_arquivo` indica a origem. 674.753 linhas (232.754 + 232.918 + 209.081), igual ao raw. Nenhuma conversão perdeu valor.
+
+| Tema | Decisão |
+|---|---|
+| Vazio | `''` vira `NULL` com `NULLIF(TRIM(col), '')`. |
+| Valores | Separador decimal é ponto (confirmado: nenhum valor com vírgula, no máximo 2 casas). Convertidos para `DECIMAL(18,2)`. |
+| Datas | `datEmissao` e `datPagamentoRestituicao` viram `DATE`. Ano antes de 2015 ou data futura gera `data_*_suspeita = TRUE`, sem descartar. Há 1 data suspeita (2002). |
+| Fornecedor | Nome em maiúsculas, sem acento, espaços colapsados. Documento só com dígitos. `tipo_documento_fornecedor` = `CNPJ` (14), `CPF` (11) ou `OUTRO`. |
+| CPF de fornecedor | Hash SHA-256 de `CAMARA_SALT|cpf`. CNPJ fica em claro. |
+| Estorno | Valores negativos ficam. `eh_estorno = TRUE` se o documento ou o líquido for negativo: 29.899 linhas. |
+| Líquido | `liquido_diverge = TRUE` quando `vlrLiquido ≠ vlrDocumento − vlrGlosa` (glosa vazia conta como zero): 3.370 linhas. Ver abaixo. |
+| Id do documento | `ideDocumento = '0'` é sentinela (28.294 linhas) e vira `NULL`. O id não é chave única: há repetições legítimas, então não serve como chave. |
+| Chave do deputado | `nu_deputado_id`. É consistente nos três anos: nenhum `nuDeputadoId` tem dois `ideCadastro`. `ide_cadastro` fica vazio nas lideranças. |
+| Pessoais | `cpf` do deputado e `txtPassageiro` não entram. Fica `tem_passageiro`. |
+
+Divergência de líquido (3.370 linhas), dois casos:
+- **2.440 linhas** com glosa vazia e `vlrLiquido = −vlrDocumento`. Quase todas são "COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA" de 2025. É convenção de sinal da fonte; `eh_estorno` já as marca.
+- **930 linhas** com líquido menor que o documento e glosa zero ou preenchida (ex.: 238,24 → 195,34). A glosa não explica essa diferença. Ficam sinalizadas, não corrigidas.
+
 ## Próximas etapas
 
 1. ✅ Estrutura, download e inspeção do dado bruto.
 2. ✅ Carregar os CSVs no DuckDB (schema `raw`), tudo `VARCHAR`, re-executável.
-3. Limpeza das despesas no refined, com testes pytest.
-4. Deputados e votos; JOIN com despesas e taxa de linhas sem par.
+3. ✅ Limpeza das despesas no refined, com testes pytest.
+4. Deputados e votos; JOIN com despesas (`nu_deputado_id`) e taxa de linhas sem par.
 5. Marts das perguntas 1 e 2.
 6. Marts das perguntas 3, 4 e 5.
 7. Runner único (`python -m src.run_pipeline`) e README final.
