@@ -40,7 +40,7 @@ Os arquivos de dados (`data/*`) e o banco `.duckdb` ficam fora do git (ver `.git
 - **CPF de fornecedor** (`txtCNPJCPF` quando tem 11 dígitos): pessoa física. No refined, CNPJ fica em claro; CPF vira hash SHA-256 com salt vindo da variável de ambiente, nunca do repositório.
 - **CPF do deputado** (coluna `cpf` do arquivo): não é necessário para nenhuma pergunta de negócio. **Não vai para o refined.** Fica só no raw local, que está fora do git.
 - **Nome de passageiro** (`txtPassageiro`): pessoa física. **Não vai para o refined.** Só o booleano `tem_passageiro` é mantido.
-- **Pendente:** `txtFornecedor` de fornecedor pessoa física (CPF) traz o nome da pessoa, por exemplo 375 nomes distintos em 2023–2025. O refined mantém esse nome, porque a regra acima trata só o CPF. Decidir antes de publicar: manter, anonimizar ou remover.
+- **Nome de fornecedor pessoa física** (`txtFornecedor` quando o documento é CPF): é dado pessoal. No refined, o nome é trocado pelo rótulo fixo `PESSOA FISICA`. O identificador fica só o hash do CPF.
 
 ## Como rodar (etapas 1 e 2)
 
@@ -112,6 +112,7 @@ Tabela `refined.despesas`: os três anos empilhados com `UNION ALL BY NAME`, uma
 | Datas | `datEmissao` e `datPagamentoRestituicao` viram `DATE`. Ano antes de 2015 ou data futura gera `data_*_suspeita = TRUE`, sem descartar. Há 1 data suspeita (2002). |
 | Fornecedor | Nome em maiúsculas, sem acento, espaços colapsados. Documento só com dígitos. `tipo_documento_fornecedor` = `CNPJ` (14), `CPF` (11) ou `OUTRO`. |
 | CPF de fornecedor | Hash SHA-256 de `CAMARA_SALT|cpf`. CNPJ fica em claro. |
+| Nome de pessoa física | Se o fornecedor é CPF, `fornecedor_nome` = `PESSOA FISICA`. O nome original não vai para o refined. |
 | Estorno | Valores negativos ficam. `eh_estorno = TRUE` se o documento ou o líquido for negativo: 29.899 linhas. |
 | Líquido | `liquido_diverge = TRUE` quando `vlrLiquido ≠ vlrDocumento − vlrGlosa` (glosa vazia conta como zero): 3.370 linhas. Ver abaixo. |
 | Id do documento | `ideDocumento = '0'` é sentinela (28.294 linhas) e vira `NULL`. O id não é chave única: há repetições legítimas, então não serve como chave. |
