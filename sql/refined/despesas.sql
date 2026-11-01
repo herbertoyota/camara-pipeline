@@ -38,6 +38,9 @@ base AS (
         NULLIF(TRIM(txtDescricaoEspecificacao), '')                      AS descricao_especificacao,
         NULLIF(upper(strip_accents(regexp_replace(TRIM(txtFornecedor), '\s+', ' ', 'g'))), '')
                                                                          AS fornecedor_nome,
+        -- Alguns fornecedores com CNPJ trazem no nome um CPF (ex.: MEI com nome de pessoa).
+        COALESCE(regexp_matches(TRIM(txtFornecedor),
+            '(^|[^0-9])[0-9]{3}\.?[0-9]{3}\.?[0-9]{3}-?[0-9]{2}([^0-9]|$)'), FALSE) AS nome_contem_cpf,
         NULLIF(regexp_replace(txtCNPJCPF, '[^0-9]', '', 'g'), '')        AS documento_digitos,
         NULLIF(TRIM(txtNumero), '')                                      AS num_documento,
         TRY_CAST(NULLIF(TRIM(indTipoDocumento), '') AS INTEGER)          AS ind_tipo_documento,
@@ -65,7 +68,10 @@ classificado AS (
             WHEN length(documento_digitos) = 14 THEN 'CNPJ'
             WHEN length(documento_digitos) = 11 THEN 'CPF'
             WHEN documento_digitos IS NOT NULL THEN 'OUTRO'
-        END AS tipo_documento_fornecedor
+        END AS tipo_documento_fornecedor,
+        -- Nome que aparece como pessoa física em alguma linha (mesmo nome, outro documento).
+        MAX(CASE WHEN length(documento_digitos) = 11 THEN 1 ELSE 0 END)
+            OVER (PARTITION BY fornecedor_nome) = 1 AS nome_de_pessoa_fisica
     FROM base
 )
 SELECT
@@ -76,6 +82,10 @@ SELECT
     num_legislatura,
     nu_deputado_id,
     ide_cadastro,
+    -- Liderança partidária: não tem ide_cadastro (é um órgão, não um deputado).
+    -- Fica fora das análises por deputado; em análises por partido, sigla_partido é NULL
+    -- e deve ser agrupada explicitamente como LIDERANÇA.
+    ide_cadastro IS NULL AS eh_lideranca,
     nome_parlamentar,
     sigla_uf,
     sigla_partido,
@@ -84,8 +94,11 @@ SELECT
     num_especificacao_sub_cota,
     descricao_especificacao,
     -- Pessoa física: o nome é dado pessoal, então fica só o hash do CPF.
+    -- Nome de pessoa física que sai no refined: em linha CPF, em nome com CPF no texto,
+    -- ou igual ao nome de uma pessoa física em outra linha (empresário individual com CNPJ).
     CASE
         WHEN tipo_documento_fornecedor = 'CPF' THEN 'PESSOA FISICA'
+        WHEN fornecedor_nome IS NOT NULL AND (nome_contem_cpf OR nome_de_pessoa_fisica) THEN 'NOME OCULTADO'
         ELSE fornecedor_nome
     END AS fornecedor_nome,
     tipo_documento_fornecedor,
@@ -93,7 +106,12 @@ SELECT
         WHEN tipo_documento_fornecedor = 'CPF' THEN sha256($salt || '|' || documento_digitos)
         ELSE documento_digitos
     END::VARCHAR AS documento_fornecedor,
-    num_documento,
+    -- Em linha de pessoa física, número de documento com 11 dígitos é tratado como
+    -- possível CPF e não sai (ex.: fornecedor que escreveu o próprio CPF no número).
+    CASE
+        WHEN tipo_documento_fornecedor = 'CPF' AND regexp_matches(num_documento, '[0-9]{11}') THEN NULL
+        ELSE num_documento
+    END AS num_documento,
     ind_tipo_documento,
     id_documento,
     data_emissao,

@@ -1,8 +1,8 @@
-"""Limpeza de deputados e votos: raw -> refined.deputados, refined.votos e a ponte.
+"""Limpeza de deputados e votos: raw -> refined.deputados, refined.votos, a ponte e a view de despesas por deputado.
 
-As regras ficam em sql/refined/*.sql. Este módulo executa os três arquivos na
-ordem (a ponte depende de deputados e de refined.despesas), confere as contagens
-e calcula a taxa de linhas sem par no JOIN despesas x deputados.
+As regras ficam em sql/refined/*.sql. Este módulo executa os arquivos na ordem
+(deputados lê refined.despesas; a ponte lê deputados; a view lê a ponte), confere
+as contagens e calcula a taxa de linhas sem par no JOIN despesas x deputados.
 
 Depende de refined.despesas já criada (python -m src.clean).
 """
@@ -15,8 +15,8 @@ PROJETO = Path(__file__).resolve().parent.parent
 DB_PATH = PROJETO / "data" / "camara.duckdb"
 SQL_DIR = PROJETO / "sql" / "refined"
 
-# Ordem importa: ponte_deputado_ceap lê refined.deputados e refined.despesas.
-TABELAS = ("deputados", "votos", "ponte_deputado_ceap")
+# Ordem importa: deputados lê despesas; ponte lê deputados; a view lê a ponte.
+TABELAS = ("deputados", "votos", "ponte_deputado_ceap", "despesas_deputado")
 ANOS = (2023, 2024, 2025)
 
 
@@ -29,7 +29,7 @@ def _contar(con: duckdb.DuckDBPyConnection, sql: str) -> int:
 
 
 def _conferir(con: duckdb.DuckDBPyConnection) -> None:
-    """Falha se alguma contagem não bater com o raw ou se houver chave duplicada."""
+    """Falha se alguma contagem não bater com a origem ou se houver chave duplicada."""
     raw_deputados = _contar(con, "SELECT count(*) FROM raw.deputados")
     if _contar(con, "SELECT count(*) FROM refined.deputados") != raw_deputados:
         raise RuntimeError("refined.deputados não tem o mesmo número de linhas do raw.deputados")
@@ -49,25 +49,29 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
     if _contar(con, "SELECT count(*) - count(DISTINCT (ano_arquivo, nu_deputado_id)) FROM refined.ponte_deputado_ceap") != 0:
         raise RuntimeError("refined.ponte_deputado_ceap tem (ano, id CEAP) duplicado")
 
+    if _contar(con, "SELECT count(*) FROM refined.despesas_deputado") != _contar(con, "SELECT count(*) FROM refined.despesas"):
+        raise RuntimeError("refined.despesas_deputado não tem o mesmo número de linhas de refined.despesas")
+
+
+# Linha sem par = não é liderança e o id não existe em refined.deputados.
+_FROM_SEM_PAR = """
+    FROM refined.despesas_deputado d
+    LEFT JOIN refined.deputados dep ON dep.id_deputado = d.id_deputado
+"""
+
 
 def taxa_sem_par(con: duckdb.DuckDBPyConnection) -> list[tuple]:
-    """Por ano: linhas de despesa, linhas com par por método e linhas sem par.
-
-    Sem par = a linha de despesa não encontra deputado no cadastro pelo id da
-    ponte. Linhas de liderança partidária (UF 'NA') são contadas à parte.
-    """
+    """Por ano: linhas, vínculo por método, liderança e linhas sem par de deputado."""
     return con.execute(
-        """
+        f"""
         SELECT
             d.ano_arquivo,
-            count(*)                                                        AS linhas,
-            count(*) FILTER (WHERE p.metodo = 'votos')                      AS por_votos,
-            count(*) FILTER (WHERE p.metodo = 'cadastro_unico')             AS por_cadastro_unico,
-            count(*) FILTER (WHERE p.id_deputado IS NULL AND d.sigla_uf = 'NA')  AS sem_par_lideranca,
-            count(*) FILTER (WHERE p.id_deputado IS NULL AND d.sigla_uf <> 'NA') AS sem_par_deputado
-        FROM refined.despesas d
-        LEFT JOIN refined.ponte_deputado_ceap p
-            ON p.ano_arquivo = d.ano_arquivo AND p.nu_deputado_id = d.nu_deputado_id
+            count(*)                                                                AS linhas,
+            count(*) FILTER (WHERE d.metodo_vinculo = 'ide_cadastro')               AS por_ide_cadastro,
+            count(*) FILTER (WHERE d.metodo_vinculo IN ('votos', 'cadastro_unico')) AS por_reserva,
+            count(*) FILTER (WHERE d.eh_lideranca)                                  AS lideranca,
+            count(*) FILTER (WHERE NOT d.eh_lideranca AND dep.id_deputado IS NULL)  AS sem_par_deputado
+        {_FROM_SEM_PAR}
         GROUP BY 1
         ORDER BY 1
         """
@@ -75,32 +79,31 @@ def taxa_sem_par(con: duckdb.DuckDBPyConnection) -> list[tuple]:
 
 
 def ids_sem_par(con: duckdb.DuckDBPyConnection) -> list[tuple]:
-    """Ids do CEAP (deputado, não liderança) sem par, com nome, UF e linhas afetadas."""
+    """Ids de deputado sem par (não liderança), com nome, UF e linhas afetadas."""
     return con.execute(
-        """
-        SELECT d.ano_arquivo, d.nu_deputado_id, any_value(d.nome_parlamentar) AS nome, any_value(d.sigla_uf) AS uf,
-               count(*) AS linhas
-        FROM refined.despesas d
-        LEFT JOIN refined.ponte_deputado_ceap p
-            ON p.ano_arquivo = d.ano_arquivo AND p.nu_deputado_id = d.nu_deputado_id
-        WHERE p.id_deputado IS NULL AND d.sigla_uf <> 'NA'
-        GROUP BY 1, 2
-        ORDER BY 1, 5 DESC
+        f"""
+        SELECT d.ano_arquivo, d.nu_deputado_id, d.ide_cadastro,
+               any_value(d.nome_parlamentar) AS nome, any_value(d.sigla_uf) AS uf, count(*) AS linhas
+        {_FROM_SEM_PAR}
+        WHERE NOT d.eh_lideranca AND dep.id_deputado IS NULL
+        GROUP BY 1, 2, 3
+        ORDER BY 1, 6 DESC
         """
     ).fetchall()
 
 
 def construir_refined_camara(con: duckdb.DuckDBPyConnection) -> dict:
-    """Recria refined.deputados, refined.votos e refined.ponte_deputado_ceap."""
+    """Recria as tabelas de deputados, votos, ponte e a view de despesas por deputado."""
     con.execute("CREATE SCHEMA IF NOT EXISTS refined")
     for tabela in TABELAS:
         _executar(con, tabela)
     _conferir(con)
     return {
         "deputados": _contar(con, "SELECT count(*) FROM refined.deputados"),
+        "deputados_sem_partido": _contar(con, "SELECT count(*) FROM refined.deputados WHERE partido_atual IS NULL"),
         "votos": _contar(con, "SELECT count(*) FROM refined.votos"),
-        "ponte": con.execute(
-            "SELECT metodo, count(*) FROM refined.ponte_deputado_ceap GROUP BY 1 ORDER BY 1"
+        "vinculo": con.execute(
+            "SELECT metodo_vinculo, count(*) FROM refined.despesas_deputado GROUP BY 1 ORDER BY 1"
         ).fetchall(),
     }
 

@@ -145,6 +145,47 @@ def test_nome_de_pessoa_fisica_nao_aparece_no_refined(con):
     assert "MARIA" not in texto.upper()
 
 
+def test_nome_com_cpf_no_texto_nao_sai_no_refined(con):
+    # CNPJ de empresário individual: o nome traz o CPF do dono.
+    inserir(con, txtNumero="mei", txtCNPJCPF="40.691.496/0001-01",
+            txtFornecedor="NOME FICTICIO 5 222.222.222-22")
+    inserir(con, txtNumero="mei2", txtCNPJCPF="40.691.496/0001-01",
+            txtFornecedor="NOME FICTICIO 5 22222222222")
+    refinar(con)
+    assert linha(con, "mei")["fornecedor_nome"] == "NOME OCULTADO"
+    assert linha(con, "mei")["tipo_documento_fornecedor"] == "CNPJ"
+    texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
+    assert "22222222222" not in texto
+    assert "222.222.222-22" not in texto
+    assert "VILMARA" not in texto
+
+
+def test_nome_de_pessoa_fisica_em_cnpj_fica_oculto(con):
+    # Mesmo nome de uma pessoa física em outra linha, agora com CNPJ.
+    inserir(con, txtNumero="pf", txtCNPJCPF="444.444.444-44", txtFornecedor="Maria da Silva")
+    inserir(con, txtNumero="pj", txtCNPJCPF="09.296.295/0001-60", txtFornecedor="MARIA DA SILVA")
+    inserir(con, txtNumero="outra", txtCNPJCPF="09.296.295/0001-60", txtFornecedor="Empresa Ltda")
+    refinar(con)
+    assert linha(con, "pj")["fornecedor_nome"] == "NOME OCULTADO"
+    assert linha(con, "outra")["fornecedor_nome"] == "EMPRESA LTDA"
+
+
+def test_numero_do_documento_com_cpf_do_fornecedor_nao_sai(con):
+    inserir(con, txtNumero="11111111111", txtCNPJCPF="003.667.080/40  -", txtFornecedor="Fornecedora")
+    inserir(con, txtNumero="NF-123", txtCNPJCPF="003.667.080/40  -", txtFornecedor="Fornecedora")
+    refinar(con)
+    assert linha(con, "NF-123")["num_documento"] == "NF-123"
+    texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
+    assert "11111111111" not in texto
+
+
+def test_cnpj_sem_cpf_no_nome_mantem_o_nome(con):
+    inserir(con, txtNumero="pj", txtCNPJCPF="09.296.295/0001-60",
+            txtFornecedor="EMPRESA 12.345.678/0001-99 LTDA")
+    refinar(con)
+    assert linha(con, "pj")["fornecedor_nome"] == "EMPRESA 12.345.678/0001-99 LTDA".upper()
+
+
 def test_documento_cnpj_fica_em_claro(con):
     inserir(con, txtNumero="cnpj", txtCNPJCPF="09.296.295/0001-60")
     refinar(con)
