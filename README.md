@@ -2,7 +2,7 @@
 
 Pipeline de dados em três camadas (`raw`, `refined`, `marts`) com dados abertos da Câmara dos Deputados, feito como projeto final de um curso de engenharia de dados.
 
-> Status: **etapa 1 de 7** — estrutura, download e inspeção do dado bruto. Os próximos passos estão listados no fim deste README.
+> Status: **etapas 1 e 2 de 7 concluídas** (estrutura, download e carga do raw). **Próxima: etapa 3** (limpeza no refined). Os próximos passos estão listados no fim deste README.
 
 ## Fonte dos dados
 
@@ -40,14 +40,17 @@ Os arquivos de dados (`data/*`) e o banco `.duckdb` ficam fora do git (ver `.git
 - **CPF de fornecedor** (`txtCNPJCPF` quando tem 11 dígitos): pessoa física. No refined, CNPJ fica em claro; CPF vira hash SHA-256 com salt vindo da variável de ambiente, nunca do repositório.
 - **CPF do deputado** (coluna `cpf` do arquivo): não é necessário para nenhuma pergunta de negócio. Decisão prevista: não levar para o refined.
 
-## Como rodar (etapa 1)
+## Como rodar (etapas 1 e 2)
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 pip install -r requirements.txt
-python -m src.download 2025     # baixa data/raw/Ano-2025.csv (use --forcar para baixar de novo)
+python -m src.download 2023 2024   # baixa data/raw/Ano-{ano}.csv (use --forcar para baixar de novo)
+python -m src.load_raw             # carrega data/raw/*.csv em data/camara.duckdb, schema raw
 ```
+
+O ano de 2026 não é baixado: o arquivo ainda está incompleto. O `load_raw` é re-executável e recria as tabelas em vez de acumular linhas.
 
 ## Inspeção do dado bruto (2025)
 
@@ -67,10 +70,13 @@ Arquivo: `Ano-2025.csv`, 209.081 linhas, 32 colunas.
 
 - O download guarda o `.zip` e extrai o CSV sem alterar o conteúdo. A transformação começa só no refined.
 - O download não baixa de novo se o CSV já existir (use `--forcar`).
+- No raw, campo vazio fica como `''`, não vira `NULL`. O refined trata isso com `NULLIF(TRIM(col), '')`.
+- A carga confere se a contagem da tabela bate com a do próprio CSV lido pelo DuckDB, e falha se houver `NULL` no raw.
 
 ## Próximas etapas
 
-2. Carregar os CSVs no DuckDB (schema `raw`), tudo `VARCHAR`, re-executável.
+1. ✅ Estrutura, download e inspeção do dado bruto.
+2. ✅ Carregar os CSVs no DuckDB (schema `raw`), tudo `VARCHAR`, re-executável.
 3. Limpeza das despesas no refined, com testes pytest.
 4. Deputados e votos; JOIN com despesas e taxa de linhas sem par.
 5. Marts das perguntas 1 e 2.
