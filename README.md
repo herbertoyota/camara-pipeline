@@ -42,7 +42,7 @@ Os arquivos de dados (`data/*`) e o banco `.duckdb` ficam fora do git (ver `.git
 - **Nome de passageiro** (`txtPassageiro`): pessoa física. **Não vai para o refined.** Só o booleano `tem_passageiro` é mantido.
 - **Nome de fornecedor pessoa física** (`txtFornecedor` quando o documento é CPF): é dado pessoal. No refined, o nome é trocado pelo rótulo fixo `PESSOA FISICA`. O identificador fica só o hash do CPF.
 
-## Como rodar (etapas 1 e 2)
+## Como rodar
 
 ```bash
 python -m venv .venv
