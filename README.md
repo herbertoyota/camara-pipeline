@@ -2,7 +2,7 @@
 
 Pipeline de dados em três camadas (`raw`, `refined`, `marts`) com dados abertos da Câmara dos Deputados, feito como projeto final de um curso de engenharia de dados.
 
-> Status: **etapas 1, 2 e 3 de 7 concluídas** (estrutura, download, carga do raw e limpeza no refined). **Próxima: etapa 4** (deputados e votos). Os próximos passos estão listados no fim deste README.
+> Status: **etapas 1, 2 e 3 de 7 concluídas** (estrutura, download, carga do raw e limpeza das despesas). **Etapa 4 em andamento**: deputados, votos e ponte feitos; a definição de participação em votações aguarda aprovação. Os próximos passos estão listados no fim deste README.
 
 ## Fonte dos dados
 
@@ -50,6 +50,18 @@ python -m venv .venv
 pip install -r requirements.txt
 python -m src.download 2023 2024   # baixa data/raw/Ano-{ano}.csv (use --forcar para baixar de novo)
 python -m src.load_raw             # carrega data/raw/*.csv em data/camara.duckdb, schema raw
+
+python -m src.download camara      # cadastro de deputados e votações/votos 2023-2025
+python -m src.load_raw             # carrega também os arquivos de deputados e votos
+```
+
+Depois da carga do raw, a limpeza:
+
+```powershell
+$env:CAMARA_SALT = "<valor>"
+python -m src.clean                # refined.despesas
+python -m src.clean_camara         # refined.deputados, refined.votos, refined.ponte_deputado_ceap
+python -m pytest
 ```
 
 O ano de 2026 não é baixado: o arquivo ainda está incompleto. O `load_raw` é re-executável e recria as tabelas em vez de acumular linhas.
@@ -123,12 +135,58 @@ Divergência de líquido (3.370 linhas), dois casos:
 - **2.440 linhas** com glosa vazia e `vlrLiquido = −vlrDocumento`. Quase todas são "COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA" de 2025. É convenção de sinal da fonte; `eh_estorno` já as marca.
 - **930 linhas** com líquido menor que o documento e glosa zero ou preenchida (ex.: 238,24 → 195,34). A glosa não explica essa diferença. Ficam sinalizadas, não corrigidas.
 
+## Deputados e votos (etapa 4)
+
+Fontes (arquivos em massa do portal, HTTP 200 sem User-Agent especial; não foi preciso a API v2):
+
+- `https://dadosabertos.camara.leg.br/arquivos/deputados/csv/deputados.csv`
+- `https://dadosabertos.camara.leg.br/arquivos/votacoes/csv/votacoes-{2023,2024,2025}.csv`
+- `https://dadosabertos.camara.leg.br/arquivos/votacoesVotos/csv/votacoesVotos-{2023,2024,2025}.csv`
+
+Raw: `raw.deputados`, `raw.votacoes_{ano}`, `raw.votacoes_votos_{ano}`. Mesma regra do CEAP: tudo `VARCHAR`, vazio como `''`, contagem conferida com o próprio DuckDB.
+
+| Tabela refined | Conteúdo | Decisão |
+|---|---|---|
+| `refined.deputados` | id da API, nome parlamentar, legislatura inicial e final, partido e UF atuais | Partido e UF vêm do voto mais recente em 2023–2025 (o cadastro em massa não traz). `NULL` para quem não votou no período. |
+| `refined.votos` | id da votação, id do deputado, tipo de voto, data da votação | Só votações de 2023–2025. `tipo_voto` vazio vira `NULL`. |
+| `refined.ponte_deputado_ceap` | id CEAP → id da API, com o método usado | Ver abaixo. |
+
+Colunas do cadastro e o que foi mantido: `uri` (vira `id_deputado`), `nome`, `idLegislaturaInicial`, `idLegislaturaFinal` **mantidas**. `nomeCivil`, `cpf`, `dataNascimento`, `municipioNascimento`, `ufNascimento`, `dataFalecimento`, `siglaSexo`, `urlRedeSocial`, `urlWebsite` **não entram** no refined (dado pessoal ou sem uso nas perguntas).
+
+**O id do CEAP não é o id da API.** `nuDeputadoId` (CEAP) e `id` da API são espaços de id diferentes, então não há JOIN direto. A ponte liga os dois:
+
+1. **`votos`**: nome e UF iguais aos do arquivo de votos do mesmo ano. A UF desambigua homônimos (ex.: dois "Carlos Gomes").
+2. **`cadastro_unico`**: nome igual a um único deputado do cadastro (sem UF). Usado quando não há voto no ano.
+3. **Sem par**: lideranças partidárias (UF `NA`) e casos em que o nome difere entre as fontes.
+
+Nomes são comparados em maiúsculas e sem acento. Nenhum nome do cadastro aparece com dois ids nos votos.
+
+### Checagens antes dos marts
+
+**(a) Linhas sem par no JOIN despesas × deputados, por ano:**
+
+| Ano | Linhas | Por votos | Por cadastro único | Sem par (deputado) | Sem par (liderança) |
+|---|---|---|---|---|---|
+| 2023 | 232.754 | 226.941 | 4.703 | 255 (0,11%) | 855 (0,37%) |
+| 2024 | 232.918 | 231.641 | 208 | 166 (0,07%) | 903 (0,39%) |
+| 2025 | 209.081 | 207.895 | 97 | 152 (0,07%) | 937 (0,45%) |
+
+Ids de deputado sem par: o caso principal é o id CEAP 3640, "Yury do Paredão" (CE), com 103 linhas em 2023, 166 em 2024 e 152 em 2025. No cadastro e nos votos ele é "Yury Bruno" (id 220660, CE). A ponte por nome não resolve. Em 2023 também ficam sem par ex-deputados sem voto no ano e com nome homônimo no cadastro: Paulo Ramos, Hélio Costa, Mariana Carvalho, João Roma, Ricardo Izar, Luiz Carlos e Bilac Pinto. Esses casos precisam de mapeamento manual ou de outra fonte.
+
+**(b) Linhas de despesa idênticas em todas as colunas:** 0 por ano e entre anos. As repetições de `ideDocumento` são linhas diferentes (outra parcela, subcota ou valor).
+
+### Limitações conhecidas
+
+- `partido_atual` é o partido do voto mais recente em 2023–2025, não o status oficial. 213 dos 833 deputados com despesa ficam sem partido, porque não tiveram voto nominal no período (ex.: ministros).
+- Votações simbólicas não têm voto por deputado. Só as nominais aparecem em `refined.votos`.
+- A ponte depende de nome. Nomes que mudam entre as fontes (caso Yury) ficam sem par até haver mapeamento explícito.
+
 ## Próximas etapas
 
 1. ✅ Estrutura, download e inspeção do dado bruto.
 2. ✅ Carregar os CSVs no DuckDB (schema `raw`), tudo `VARCHAR`, re-executável.
 3. ✅ Limpeza das despesas no refined, com testes pytest.
-4. Deputados e votos; JOIN com despesas (`nu_deputado_id`) e taxa de linhas sem par.
+4. Deputados e votos: dados, limpeza e ponte prontos. Falta aprovar a definição de participação em votações.
 5. Marts das perguntas 1 e 2.
 6. Marts das perguntas 3, 4 e 5.
 7. Runner único (`python -m src.run_pipeline`) e README final.
