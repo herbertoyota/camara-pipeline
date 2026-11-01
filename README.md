@@ -226,11 +226,22 @@ Sensibilidade anual, em R$ milhões de `valor_liquido`:
 
 **Denominador da média:** deputados distintos com pelo menos uma despesa no ano, **sem liderança**. O gasto do numerador também exclui liderança. Por isso o total do ano pode não bater com `gasto médio × deputados`.
 
+**Média por deputado: anual × mensal.** A média anual divide o gasto do ano pelos deputados distintos com despesa no ano. A média mensal divide o gasto de cada mês pelos deputados com despesa naquele mês, e tira a média dos 12 meses.
+
+| Ano | Média anual (R$) | Deputados no ano | Média mensal (R$) | Deputados por mês (min–máx) |
+|---|---|---|---|---|
+| 2023 | 310.370 | 788 | 38.938 | 516–545 |
+| 2024 | 428.464 | 582 | 39.595 | 516–536 |
+| 2025 | 425.639 | 562 | 38.668 | 510–524 |
+
+Os três anos têm os 12 meses com despesa, então **2023 não é exercício parcial** no calendário. A diferença entre 2023 e 2024 vem do denominador: a média anual conta cada deputado uma vez, e em 2023 passaram 788 deputados (suplentes que entram e saem), contra ~520 por mês. A média mensal fica estável, em torno de R$ 39 mil nos três anos.
+
 **Marts de gasto:**
 - `marts.gasto_por_partido_ano`: partido **da época do gasto** (da despesa, não do cadastro). Liderança entra como partido `LIDERANCA`. Um deputado que trocou de partido no ano conta nos dois partidos, então a soma de `deputados_com_despesa` pode passar do total de deputados.
 - `marts.gasto_por_uf_ano`: UF do mandato na época. Liderança fica com UF `NA`, para os totais baterem.
-- `marts.gasto_por_deputado_ano`: só deputados (liderança fica fora). Partido e UF são os da despesa mais recente do deputado no ano. Não há corte mensal: foi considerado desnecessário para as perguntas e para o tamanho do mart.
-- `marts.gasto_resumo_ano`: total do ano e gasto médio por deputado.
+- `marts.gasto_por_deputado_ano`: só deputados (liderança fica fora). Partido e UF são os da despesa mais recente do deputado no ano. Traz `meses_com_despesa` (quantos meses do ano o deputado teve despesa).
+- `marts.gasto_resumo_ano`: total do ano e duas médias por deputado (anual e mensal), explicadas abaixo.
+- `marts.gasto_por_deputado_mes` e `marts.gasto_por_partido_mes`: corte mensal. Liderança fica fora do por-deputado e entra no por-partido como `LIDERANCA`. `deputados_com_despesa` é contado no mês.
 
 **Pergunta 2 (fornecedores):**
 - `marts.gasto_por_fornecedor`: gasto líquido por fornecedor e período (2023, 2024, 2025 e `TOTAL`).
@@ -239,12 +250,12 @@ Sensibilidade anual, em R$ milhões de `valor_liquido`:
 
 | Período | Gasto total (R$) | Fornecedores | Top 10 (%) | HHI |
 |---|---|---|---|---|
-| 2023 | 245.526.552 | 21.809 | 23,73 | 159,0 |
-| 2024 | 250.384.312 | 22.419 | 21,46 | 133,4 |
-| 2025 | 240.347.478 | 22.251 | 17,39 | 72,9 |
-| TOTAL | 736.258.343 | 40.001 | 20,85 | 117,7 |
+| 2023 | 245.526.552 | 21.809 | 23,73 | 158,7 |
+| 2024 | 250.384.312 | 22.419 | 21,46 | 132,9 |
+| 2025 | 240.347.478 | 22.251 | 17,39 | 72,3 |
+| TOTAL | 736.258.343 | 40.001 | 20,85 | 117,2 |
 
-O HHI usa a participação líquida. Um fornecedor com saldo negativo no período fica com participação negativa, e o quadrado a torna positiva. Há 1 fornecedor com saldo negativo no total; ele não está no top 10.
+O HHI é calculado **só sobre fornecedores com total positivo** no período. Fornecedores com total zero ou negativo ficam de fora. Em todos os períodos, esse grupo é **1 fornecedor**: o CNPJ 00530352000159, com o nome "COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA". Ele recebe as linhas de convenção de sinal, que são negativas. Valores excluídos do HHI: −1.443.948 (2023), −1.821.186 (2024), −1.873.926 (2025) e −5.139.060 (TOTAL). A participação do top 10 continua sobre o gasto líquido total, que inclui esse valor negativo.
 
 **Privacidade nos marts:**
 - CNPJ aparece inteiro. Pessoa física aparece só como `ID-` + 8 caracteres do hash. Nunca o CPF, nunca o hash completo, nunca o nome.
