@@ -37,12 +37,22 @@ OPCOES_LEITURA = f"""
 """
 
 
+# Padrões de arquivo em data/raw e a tabela de destino de cada um.
+PADROES = [
+    (r"Ano-(\d{4})\.csv", "raw.ceap_{0}"),                      # despesas CEAP
+    (r"deputados\.csv", "raw.deputados"),                        # cadastro de deputados
+    (r"votacoes-(\d{4})\.csv", "raw.votacoes_{0}"),              # votações
+    (r"votacoesVotos-(\d{4})\.csv", "raw.votacoes_votos_{0}"),   # votos por deputado
+]
+
+
 def nome_tabela(csv_path: Path) -> str:
-    """Ano-2025.csv -> raw.ceap_2025."""
-    m = re.fullmatch(r"Ano-(\d{4})\.csv", csv_path.name)
-    if not m:
-        raise ValueError(f"Nome de arquivo inesperado: {csv_path.name}")
-    return f"raw.ceap_{m.group(1)}"
+    """Ano-2025.csv -> raw.ceap_2025; votacoes-2024.csv -> raw.votacoes_2024; deputados.csv -> raw.deputados."""
+    for padrao, modelo in PADROES:
+        m = re.fullmatch(padrao, csv_path.name)
+        if m:
+            return modelo.format(*m.groups())
+    raise ValueError(f"Nome de arquivo inesperado: {csv_path.name}")
 
 
 def carregar(con: duckdb.DuckDBPyConnection, csv_path: Path) -> int:
@@ -72,10 +82,12 @@ def carregar(con: duckdb.DuckDBPyConnection, csv_path: Path) -> int:
 
 
 def carregar_tudo(db_path: Path = DB_PATH, raw_dir: Path = RAW_DIR) -> dict[str, int]:
-    """Carrega todos os Ano-*.csv de raw_dir. Devolve {tabela: linhas}."""
-    csvs = sorted(raw_dir.glob("Ano-*.csv"))
+    """Carrega todos os CSVs de raw_dir que casam com PADROES. Devolve {tabela: linhas}."""
+    csvs = sorted(
+        p for p in raw_dir.glob("*.csv") if any(re.fullmatch(padrao, p.name) for padrao, _ in PADROES)
+    )
     if not csvs:
-        raise FileNotFoundError(f"Nenhum Ano-*.csv em {raw_dir}. Rode: python -m src.download 2025")
+        raise FileNotFoundError(f"Nenhum CSV reconhecido em {raw_dir}. Rode: python -m src.download 2025")
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     resultado = {}
