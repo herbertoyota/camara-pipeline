@@ -2,7 +2,7 @@
 
 Pipeline de dados em três camadas (`raw`, `refined`, `marts`) com dados abertos da Câmara dos Deputados, feito como projeto final de um curso de engenharia de dados.
 
-> Status: **etapas 1, 2 e 3 de 7 concluídas** (estrutura, download, carga do raw e limpeza das despesas). **Etapa 4 concluída, exceto a métrica de participação**, que aguarda aprovação das regras (ver seção própria). Os próximos passos estão listados no fim deste README.
+> Status: **etapas 1 a 4 concluídas**, e **etapa 5 com as perguntas 1 e 2 prontas** (marts de gasto por partido, UF, deputado e ano; top fornecedores e concentração). A métrica de participação (pergunta 4) ainda não foi implementada. Os próximos passos estão listados no fim deste README.
 
 ## Fonte dos dados
 
@@ -61,6 +61,7 @@ Depois da carga do raw, a limpeza:
 $env:CAMARA_SALT = "<valor>"
 python -m src.clean                # refined.despesas
 python -m src.clean_camara         # refined.deputados, refined.votos, refined.ponte_deputado_ceap, view despesas_deputado
+python -m src.marts                # marts de gasto e de fornecedores (schema marts)
 python -m pytest
 ```
 
@@ -195,17 +196,69 @@ A métrica entra nos marts da pergunta 4. Estas são as regras já decididas:
 
 - **Exercício (proxy):** o período de exercício de um deputado vai do primeiro ao último voto dele registrado em 2023–2025. Limitação: isso pode inflar um pouco a participação, porque um deputado que assumiu no meio do período só é contado a partir do primeiro voto, e deputados que saíram antes do último voto deixam de contar. Quando houver as datas de mandato, a regra deve ser trocada.
 - **Obstrução conta como participação.** A documentação do arquivo diz que o campo traz "o voto (ou posicionamento de obstrução)". Obstrução é uma forma de presença registrada, então entra no numerador.
-- **Artigo 17 fica fora do numerador e do denominador.** Premissa a validar: a documentação oficial do arquivo de votos (`https://dadosabertos.camara.leg.br/swagger/api.html`) não define "Artigo 17". A decisão baseia-se na escolha do usuário, não em texto da fonte.
+- **Artigo 17 fica fora do numerador e do denominador.** A documentação oficial do arquivo de votos (`https://dadosabertos.camara.leg.br/swagger/api.html`) **não define o termo**: só diz que o campo traz "o voto (ou posicionamento de obstrução)". A exclusão é premissa, não texto da fonte. Evidência empírica dos dados em 2023–2025:
+  - 953 votos com tipo "Artigo 17", de 39 deputados, em 917 votações.
+  - Arthur Lira (PP) tem 318 e Hugo Motta (REPUBLICANOS) tem 225: juntos, 57% desses votos.
+  - Nenhum deputado registra Sim ou Não na mesma votação em que aparece "Artigo 17".
+  - O padrão (concentrado em quem preside a Câmara, em anos diferentes) sugere voto de presidência de sessão, mas isso não está confirmado.
 - **Sem voto no período vira NULL, não zero.** Deputado sem nenhum voto em 2023–2025 não tem métrica; contar como zero distorceria o indicador.
 - **Votos com tipo vazio** (`tipo_voto` NULL) ficam fora do numerador e do denominador.
 - **Denominador:** votações nominais (as que têm voto individual) dentro do período de exercício. Votações simbólicas não entram.
+
+## Marts de gasto e de fornecedores (etapa 5)
+
+Schema `marts`, SQL em `sql/marts/`, executado por `python -m src.marts`. Todos os marts saem de `marts.base_gasto` (view sobre `refined.despesas_deputado`).
+
+**Cobertura:** despesas de **2023, 2024 e 2025**. **2026 não está carregado** (arquivo ainda incompleto na fonte).
+
+**Métrica de gasto (aprovada):** `gasto = SUM(valor_liquido)`. Estornos (valores negativos) abatem o total. As linhas de convenção de sinal e as divergentes **entram** no padrão. Cada mart de gasto traz as colunas de sensibilidade:
+- `valor_liquido_total`: o padrão.
+- `valor_convencao_sinal`: soma das linhas de convenção (glosa vazia e `valor_liquido = −valor_documento`). Abater essa soma dá o total sem elas.
+- `linhas_divergentes`: linhas com `liquido ≠ documento − glosa` que não são convenção (as 930 do README). Não contam em duplicidade as linhas de convenção.
+
+Sensibilidade anual, em R$ milhões de `valor_liquido`:
+
+| Ano | Total (padrão) | Convenção de sinal | Divergentes (930) | Gasto médio por deputado (R$) |
+|---|---|---|---|---|
+| 2023 | 245,53 | −1,45 | 358 linhas | 310.370 (788 deputados) |
+| 2024 | 250,38 | −1,83 | 293 linhas | 428.464 (582 deputados) |
+| 2025 | 240,35 | −1,87 | 279 linhas | 425.639 (562 deputados) |
+
+**Denominador da média:** deputados distintos com pelo menos uma despesa no ano, **sem liderança**. O gasto do numerador também exclui liderança. Por isso o total do ano pode não bater com `gasto médio × deputados`.
+
+**Marts de gasto:**
+- `marts.gasto_por_partido_ano`: partido **da época do gasto** (da despesa, não do cadastro). Liderança entra como partido `LIDERANCA`. Um deputado que trocou de partido no ano conta nos dois partidos, então a soma de `deputados_com_despesa` pode passar do total de deputados.
+- `marts.gasto_por_uf_ano`: UF do mandato na época. Liderança fica com UF `NA`, para os totais baterem.
+- `marts.gasto_por_deputado_ano`: só deputados (liderança fica fora). Partido e UF são os da despesa mais recente do deputado no ano. Não há corte mensal: foi considerado desnecessário para as perguntas e para o tamanho do mart.
+- `marts.gasto_resumo_ano`: total do ano e gasto médio por deputado.
+
+**Pergunta 2 (fornecedores):**
+- `marts.gasto_por_fornecedor`: gasto líquido por fornecedor e período (2023, 2024, 2025 e `TOTAL`).
+- `marts.top_fornecedores`: top 10 por período. Empate no valor é desfeito pelo identificador em ordem crescente, então o top 10 é reproduzível e sempre tem 10 linhas. `participacao_pct` é a parcela do gasto total do período.
+- `marts.concentracao_fornecedores`: `participacao_top10_pct` e um índice de concentração **HHI** (soma dos quadrados das participações em %, escala 0 a 10.000; 10.000 = um fornecedor concentra tudo). Resultados:
+
+| Período | Gasto total (R$) | Fornecedores | Top 10 (%) | HHI |
+|---|---|---|---|---|
+| 2023 | 245.526.552 | 21.809 | 23,73 | 159,0 |
+| 2024 | 250.384.312 | 22.419 | 21,46 | 133,4 |
+| 2025 | 240.347.478 | 22.251 | 17,39 | 72,9 |
+| TOTAL | 736.258.343 | 40.001 | 20,85 | 117,7 |
+
+O HHI usa a participação líquida. Um fornecedor com saldo negativo no período fica com participação negativa, e o quadrado a torna positiva. Há 1 fornecedor com saldo negativo no total; ele não está no top 10.
+
+**Privacidade nos marts:**
+- CNPJ aparece inteiro. Pessoa física aparece só como `ID-` + 8 caracteres do hash. Nunca o CPF, nunca o hash completo, nunca o nome.
+- Nome de fornecedor pessoa física sai como `PESSOA FISICA`. Fornecedor que teve o nome ocultado na limpeza aparece como `NOME OCULTADO`, identificado pelo CNPJ.
+- Não há nome de pessoa física nos marts. Os nomes de deputados em `gasto_por_deputado_ano` são nomes parlamentares públicos, não dados de fornecedor.
+- A conferência de colisão garante que dois CPFs diferentes não recebem o mesmo identificador.
+- Varredura final: nenhum CPF real (927 do raw), nenhum nome de pessoa física (365) e nenhum hash completo nas colunas dos marts (108.616 linhas varridas).
 
 ## Próximas etapas
 
 1. ✅ Estrutura, download e inspeção do dado bruto.
 2. ✅ Carregar os CSVs no DuckDB (schema `raw`), tudo `VARCHAR`, re-executável.
 3. ✅ Limpeza das despesas no refined, com testes pytest.
-4. ✅ Deputados e votos: dados, limpeza e JOIN por `ide_cadastro`. Falta aprovar a métrica de participação (marts da pergunta 4).
-5. Marts das perguntas 1 e 2.
+4. ✅ Deputados e votos: dados, limpeza e JOIN por `ide_cadastro`.
+5. Marts das perguntas 1 e 2: ✅ feitos (gasto por partido, UF e deputado; top fornecedores e concentração). Pendente: a métrica de participação (pergunta 4), que entra nos marts seguintes.
 6. Marts das perguntas 3, 4 e 5.
 7. Runner único (`python -m src.run_pipeline`) e README final.
