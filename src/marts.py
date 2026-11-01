@@ -58,6 +58,9 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
         if _soma(con, sql) != base_linhas:
             raise RuntimeError(f"{mart} não tem o número de linhas da base")
 
+    # Identificador de pessoa física é um prefixo do hash: dois CPFs não podem colidir nele.
+    if _soma(con, "SELECT count(DISTINCT documento_fornecedor) - count(DISTINCT CASE WHEN tipo_documento_fornecedor = 'CNPJ' THEN documento_fornecedor ELSE 'ID-' || left(documento_fornecedor, 8) END) FROM marts.base_gasto") != 0:
+        raise RuntimeError("colisão de identificador de fornecedor pessoa física")
     # Fornecedor sem documento quebraria o ranking e a concentração.
     if _soma(con, "SELECT count(*) FROM marts.base_gasto WHERE documento_fornecedor IS NULL") != 0:
         raise RuntimeError("há despesas sem documento de fornecedor")

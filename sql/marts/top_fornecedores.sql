@@ -1,7 +1,7 @@
 -- marts.top_fornecedores: 10 maiores fornecedores por período (2023, 2024, 2025 e TOTAL).
 --
 -- Ranking: valor_liquido_total decrescente. Empate no valor é desfeito pelo
--- documento_fornecedor em ordem crescente, então o top 10 tem sempre 10 linhas
+-- identificador em ordem crescente, então o top 10 tem sempre 10 linhas
 -- por período (quando houver pelo menos 10 fornecedores) e é reproduzível.
 -- participacao_pct: parcela do gasto total do período.
 
@@ -16,14 +16,13 @@ ranqueado AS (
         f.periodo,
         row_number() OVER (
             PARTITION BY f.periodo
-            ORDER BY f.valor_liquido_total DESC, f.documento_fornecedor ASC
+            ORDER BY f.valor_liquido_total DESC, f.identificador ASC
         )                                                       AS posicao,
         f.tipo_documento_fornecedor,
         f.identificador,
         f.fornecedor_nome,
         f.valor_liquido_total,
-        f.linhas,
-        f.documento_fornecedor
+        f.linhas
     FROM marts.gasto_por_fornecedor f
 )
 SELECT

@@ -1,6 +1,6 @@
 -- marts.gasto_por_fornecedor: gasto líquido por fornecedor e período (2023, 2024, 2025 e TOTAL).
 --
--- Fornecedor identificado pelo documento:
+-- Fornecedor identificado pelo documento (exibido como identificador):
 --   - CNPJ: aparece inteiro (dado público do fornecedor).
 --   - CPF (pessoa física): aparece só como 'ID-' + 8 primeiros caracteres do hash
 --     salgado. Nunca o CPF, nunca o nome.
@@ -20,17 +20,26 @@ WITH base AS (
     SELECT 'TOTAL' AS periodo, documento_fornecedor, tipo_documento_fornecedor,
            fornecedor_nome, valor_liquido
     FROM marts.base_gasto
+),
+identificado AS (
+    SELECT
+        periodo,
+        tipo_documento_fornecedor,
+        CASE
+            WHEN tipo_documento_fornecedor = 'CNPJ' THEN documento_fornecedor
+            ELSE 'ID-' || left(documento_fornecedor, 8)
+        END AS identificador,
+        fornecedor_nome,
+        valor_liquido
+    FROM base
 )
+-- O documento completo não sai no mart: nem o CPF, nem o hash inteiro.
 SELECT
     periodo,
-    documento_fornecedor,
     tipo_documento_fornecedor,
-    CASE
-        WHEN tipo_documento_fornecedor = 'CNPJ' THEN documento_fornecedor
-        ELSE 'ID-' || left(documento_fornecedor, 8)
-    END                                                         AS identificador,
+    identificador,
     mode(fornecedor_nome)                                       AS fornecedor_nome,
     sum(valor_liquido)                                          AS valor_liquido_total,
     count(*)                                                    AS linhas
-FROM base
-GROUP BY periodo, documento_fornecedor, tipo_documento_fornecedor;
+FROM identificado
+GROUP BY periodo, tipo_documento_fornecedor, identificador;

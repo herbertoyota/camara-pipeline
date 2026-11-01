@@ -23,7 +23,7 @@ participacoes AS (
         f.periodo,
         f.valor_liquido_total,
         100.0 * f.valor_liquido_total / t.gasto_total          AS part_pct,
-        row_number() OVER (PARTITION BY f.periodo ORDER BY f.valor_liquido_total DESC, f.documento_fornecedor ASC) AS posicao
+        row_number() OVER (PARTITION BY f.periodo ORDER BY f.valor_liquido_total DESC, f.identificador ASC) AS posicao
     FROM marts.gasto_por_fornecedor f
     JOIN totais t ON t.periodo = f.periodo
 )
