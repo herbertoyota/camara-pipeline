@@ -94,3 +94,10 @@ def test_deputado_so_com_comissao_nao_aparece_no_mart(con):
 
 def test_participacao_nunca_passa_de_100(con):
     assert con.execute("SELECT count(*) FROM marts.participacao_deputado WHERE participacao_pct > 100").fetchone()[0] == 0
+
+
+def test_votou_artigo_17_e_booleano_por_deputado(con):
+    flags = dict(con.execute("SELECT id_deputado, votou_artigo_17 FROM marts.participacao_deputado").fetchall())
+    assert flags[1] is True   # A votou Artigo 17 em V3
+    assert flags[2] is False  # B tem tipo vazio, não Artigo 17
+    assert flags[3] is False

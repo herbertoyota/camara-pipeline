@@ -26,6 +26,7 @@ ARQUIVOS = (
     "gasto_resumo_ano",
     "crescimento_categorias",
     "participacao_deputado",
+    "correlacao_gasto_participacao",
     "gasto_por_fornecedor",
     "gasto_por_raiz",
     "top_fornecedores",

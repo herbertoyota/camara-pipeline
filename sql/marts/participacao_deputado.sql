@@ -9,6 +9,7 @@
 --     "Artigo 17" ou com tipo vazio (fora do numerador e do denominador).
 --   - Ausência em uma votação do período conta no denominador (o deputado não votou).
 --   - Sem nenhum voto de plenário em 2023–2025: não aparece no mart (participação NULL).
+--   - votou_artigo_17: TRUE se o deputado tem ao menos um voto "Artigo 17" em plenário.
 --
 -- Colunas de comparação (todas as votações, plenário e comissões): *_todas. Não entram na correlação.
 -- Limitações: o proxy de exercício não distingue licença ou afastamento no meio do período;
@@ -25,6 +26,9 @@ nominais_plen AS (
 janela AS (
     SELECT id_deputado, min(data_votacao) AS primeiro_voto, max(data_votacao) AS ultimo_voto
     FROM plen GROUP BY id_deputado
+),
+art17 AS (
+    SELECT DISTINCT id_deputado FROM plen WHERE tipo_voto = 'Artigo 17'
 ),
 excluidos AS (
     SELECT id_deputado, count(*) AS votos_excluidos
@@ -75,6 +79,7 @@ SELECT
          THEN 100.0 * COALESCE(num.votos_registrados, 0)
               / (COALESCE(np.votacoes_nominais_periodo, 0) - COALESCE(ex.votos_excluidos, 0))
     END                                                                      AS participacao_pct,
+    (a17.id_deputado IS NOT NULL)                                            AS votou_artigo_17,
     COALESCE(nt.n, 0) - COALESCE(ext.n, 0)                                   AS denominador_todas,
     CASE WHEN COALESCE(nt.n, 0) - COALESCE(ext.n, 0) > 0
          THEN 100.0 * COALESCE(numt.n, 0) / (COALESCE(nt.n, 0) - COALESCE(ext.n, 0))
@@ -86,4 +91,5 @@ LEFT JOIN excluidos ex ON ex.id_deputado = j.id_deputado
 LEFT JOIN no_periodo np ON np.id_deputado = j.id_deputado
 LEFT JOIN no_periodo_todas nt ON nt.id_deputado = j.id_deputado
 LEFT JOIN excluidos_todas ext ON ext.id_deputado = j.id_deputado
-LEFT JOIN numerador_todas numt ON numt.id_deputado = j.id_deputado;
+LEFT JOIN numerador_todas numt ON numt.id_deputado = j.id_deputado
+LEFT JOIN art17 a17 ON a17.id_deputado = j.id_deputado;
