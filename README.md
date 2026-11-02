@@ -190,20 +190,57 @@ Sem par de deputado: zero nos três anos. A ponte por nome dava 255 / 166 / 152 
 - Votações simbólicas não têm voto por deputado. Só as nominais aparecem em `refined.votos`.
 - Lideranças não têm partido no campo `sigla_partido`. Em análises por partido, agrupe-as como `LIDERANÇA`.
 
-## Participação em votações: decisões (métrica ainda não implementada)
+## Crescimento por categoria (pergunta 3)
 
-A métrica entra nos marts da pergunta 4. Estas são as regras já decididas:
+`marts.crescimento_categorias`: gasto líquido por categoria (`tipo_despesa`) em 2023, 2024 e 2025, com variação absoluta e percentual (2023→2025 e ano a ano).
 
-- **Exercício (proxy):** o período de exercício de um deputado vai do primeiro ao último voto dele registrado em 2023–2025. Limitação: isso pode inflar um pouco a participação, porque um deputado que assumiu no meio do período só é contado a partir do primeiro voto, e deputados que saíram antes do último voto deixam de contar. Quando houver as datas de mandato, a regra deve ser trocada.
-- **Obstrução conta como participação.** A documentação do arquivo diz que o campo traz "o voto (ou posicionamento de obstrução)". Obstrução é uma forma de presença registrada, então entra no numerador.
-- **Artigo 17 fica fora do numerador e do denominador.** A documentação oficial do arquivo de votos (`https://dadosabertos.camara.leg.br/swagger/api.html`) **não define o termo**: só diz que o campo traz "o voto (ou posicionamento de obstrução)". A exclusão é premissa, não texto da fonte. Evidência empírica dos dados em 2023–2025:
-  - 953 votos com tipo "Artigo 17", de 39 deputados, em 917 votações.
-  - Arthur Lira (PP) tem 318 e Hugo Motta (REPUBLICANOS) tem 225: juntos, 57% desses votos.
-  - Nenhum deputado registra Sim ou Não na mesma votação em que aparece "Artigo 17".
-  - O padrão (concentrado em quem preside a Câmara, em anos diferentes) sugere voto de presidência de sessão, mas isso não está confirmado.
-- **Sem voto no período vira NULL, não zero.** Deputado sem nenhum voto em 2023–2025 não tem métrica; contar como zero distorceria o indicador.
-- **Votos com tipo vazio** (`tipo_voto` NULL) ficam fora do numerador e do denominador.
-- **Denominador:** votações nominais (as que têm voto individual) dentro do período de exercício. Votações simbólicas não entram.
+- **Categorias:** 21 em 2023, 19 em 2024 e 21 em 2025. Os textos são idênticos entre os anos (sem indício de renomeação), mas a descrição pode mudar em cargas futuras: confira `anos_presentes`.
+- **Categorias que não existem em todos os anos** ficam com `presente_em_todos_os_anos = FALSE` e `anos_ausentes`: "CONSULTORIAS, PESQUISAS E TRABALHOS TÉCNICOS" (só 2023), "SERVIÇOS POSTAIS" (sem 2024) e "PASSAGEM AÉREA - MISSÃO OFICIAL" (só 2025).
+- **Percentual é NULL** quando a base é zero ou negativa (ex.: convenção de sinal, com base negativa), ou quando a categoria não tem linhas em um dos dois anos comparados. Ausência não é queda.
+- **Família passagem aérea (agregado):** linha extra que soma SIGEPA, RPA e missão oficial (`eh_agregado = TRUE`). Não entra na soma das categorias individuais. Variação 2023→2025: de R$ 45,9 milhões para R$ 27,8 milhões (−39,5%).
+- **Nota de cautela:** as variações dentro da família de passagens aéreas podem refletir **mudança de sistema de emissão, e não de gasto**. Os bilhetes são emitidos por sistemas diferentes (SIGEPA e RPA), então a queda de uma linha pode aparecer como aumento da outra. Leia o agregado como gasto total com passagens, e as linhas individuais com cautela.
+
+## Participação em votações (pergunta 4)
+
+**Universo: votações nominais de plenário (órgão `PLEN`).** O arquivo de votações traz 1.445 votações nominais em 2023–2025: 1.002 são de plenário e 443 são de comissões. A análise usa só as de plenário. Motivo: as votações de comissão têm poucos votantes (mediana de 37 votos, contra 409 no plenário; a menor votação de plenário tem 263), então quem não participa de uma comissão específica pesaria igual a quem não participa do plenário. Usar as duas juntas misturava órgãos diferentes.
+
+**Métrica (aprovada, restrita a plenário):**
+- **Período de exercício (proxy):** do primeiro ao último voto de plenário do deputado em 2023–2025.
+- **Numerador:** votos Sim, Não, Abstenção e Obstrução em plenário dentro do período. Obstrução conta como participação.
+- **Denominador:** votações nominais de plenário no período, menos as em que o deputado votou "Artigo 17" ou com tipo vazio. Artigo 17 fica fora do numerador e do denominador. **A documentação oficial do arquivo não define o termo** (ela diz só que o campo traz "o voto (ou posicionamento de obstrução)"). A exclusão é premissa. Evidência nos dados: 953 votos de 39 deputados, com 57% concentrados em dois presidentes da Câmara (Arthur Lira e Hugo Motta), e nenhum deputado com Sim ou Não na mesma votação em que aparece Artigo 17.
+- **Ausência conta no denominador:** se o deputado não votou numa votação do período, isso entra como não participação.
+- **Sem voto de plenário em 2023–2025:** participação NULL, não zero. Esses deputados não entram no mart.
+
+**Limitações:**
+- **Janela por primeiro e último voto.** Para a maioria a janela cobre quase todo o período (mediana de 1.001 votações de plenário na janela, de 1.002). Para quem entrou ou saiu cedo, a janela é menor. Há casos extremos: Heloísa Helena tem janela de um único dia (16/12/2025), porque só tem um voto de plenário no período.
+- **Licenças e afastamentos não são identificados.** O arquivo em massa não traz datas de mandato nem de licença. Um deputado licenciado no meio do período aparece com denominador cheio e participação baixa. Isso só se resolve com as datas de mandato, que estão na API e não no arquivo em massa.
+- **Presença em sessão não é o mesmo que votar.** Ver a comparação com o site abaixo.
+
+**Distribuição com a restrição a plenário (621 deputados com voto de plenário):**
+
+| Métrica | Mín | Q1 | Mediana | Q3 | Máx |
+|---|---|---|---|---|---|
+| Participação em plenário (%) | 3,4 | 70,0 | 80,3 | 88,1 | 99,0 |
+| Denominador de plenário | 11 | 943 | 1.001 | 1.001 | 1.002 |
+| Participação em todas as votações, para comparação (%) | 2,4 | 49,1 | 57,6 | 63,8 | 90,9 |
+
+- Deputados com participação de plenário acima de 90%: **115**.
+- Deputados com menos de 30 votações elegíveis (plenário): **3** (Heloísa Helena, Leandre e Naumi Amorim). O mínimo de 30 (pré-aprovado, a reavaliar) mantém **618 deputados**.
+- Nenhum deputado chega a 100%.
+
+**Comparação com a presença oficial no site da Câmara (checagem parcial).** Acessei as páginas de perfil de três deputados. O site mostra "Presença em Plenário" como contagem de **dias**, para um período que não está declarado na página:
+
+| Deputado | Site: presença em plenário (dias) | Participação em plenário, 2023–2025 (votos) |
+|---|---|---|
+| Arthur Lira | 8 (66 ausências justificadas) | 13,7% (93 de 680) |
+| Hugo Motta | 73 (1 ausência justificada) | 43,6% (336 de 771) |
+| Acácio Favacho | 61 (13 ausências não justificadas) | 75,1% (752 de 1.001) |
+
+As unidades (dias de sessão contra votações nominais) e o período não coincidem, então esta **não é uma validação** da métrica. Há uma inconsistência que importa: o site coloca Motta à frente de Acácio, e a participação em votos coloca Acácio à frente de Motta. A explicação mais provável é que Motta, como presidente, preside sessões (conta como presença no site) e vota pouco nas nominais. Isso mostra que "participação em votações nominais" e "presença" são medidas diferentes, e que a primeira não substitui a segunda.
+
+**Mínimo de votações elegíveis:** 30, pré-aprovado e a reavaliar. Com a distribuição de plenário, mantém 618 de 621 deputados.
+
+**Correlação e pergunta 4 completa:** ainda não calculadas (aguardam aprovação do mínimo e da leitura da comparação com o site).
 
 ## Marts de gasto e de fornecedores (etapa 5)
 
