@@ -236,6 +236,8 @@ Sensibilidade anual, em R$ milhões de `valor_liquido`:
 
 Os três anos têm os 12 meses com despesa, então **2023 não é exercício parcial** no calendário. A diferença entre 2023 e 2024 vem do denominador: a média anual conta cada deputado uma vez, e em 2023 passaram 788 deputados (suplentes que entram e saem), contra ~520 por mês. A média mensal fica estável, em torno de R$ 39 mil nos três anos.
 
+**Por que a média anual por deputado engana.** A média anual divide o gasto do ano pelo número de deputados que tiveram alguma despesa no ano. Esse número inclui suplentes que aparecem por poucos meses. Quem fica o ano inteiro e quem fica dois meses entram com o mesmo peso no denominador, mas gastam quantias diferentes. Por isso, a média anual cai quando há mais rotatividade e sobe quando há menos, mesmo que o gasto mensal por deputado não tenha mudado. Em 2023, o denominador foi 788 deputados, contra ~520 presentes por mês. A **média por deputado-mês** é a medida comparável entre anos: divide o gasto de cada mês pelos deputados presentes naquele mês, e tira a média dos meses. Ela ficou em torno de R$ 39 mil em 2023, 2024 e 2025.
+
 **Marts de gasto:**
 - `marts.gasto_por_partido_ano`: partido **da época do gasto** (da despesa, não do cadastro). Liderança entra como partido `LIDERANCA`. Um deputado que trocou de partido no ano conta nos dois partidos, então a soma de `deputados_com_despesa` pode passar do total de deputados.
 - `marts.gasto_por_uf_ano`: UF do mandato na época. Liderança fica com UF `NA`, para os totais baterem.
@@ -244,18 +246,34 @@ Os três anos têm os 12 meses com despesa, então **2023 não é exercício par
 - `marts.gasto_por_deputado_mes` e `marts.gasto_por_partido_mes`: corte mensal. Liderança fica fora do por-deputado e entra no por-partido como `LIDERANCA`. `deputados_com_despesa` é contado no mês.
 
 **Pergunta 2 (fornecedores):**
-- `marts.gasto_por_fornecedor`: gasto líquido por fornecedor e período (2023, 2024, 2025 e `TOTAL`).
-- `marts.top_fornecedores`: top 10 por período. Empate no valor é desfeito pelo identificador em ordem crescente, então o top 10 é reproduzível e sempre tem 10 linhas. `participacao_pct` é a parcela do gasto total do período.
-- `marts.concentracao_fornecedores`: `participacao_top10_pct` e um índice de concentração **HHI** (soma dos quadrados das participações em %, escala 0 a 10.000; 10.000 = um fornecedor concentra tudo). Resultados:
+- `marts.gasto_por_fornecedor`: gasto líquido por fornecedor, período (2023, 2024, 2025 e `TOTAL`), raiz e a marcação `eh_lancamento_interno`.
+- `marts.top_fornecedores`: top 10 de fornecedores **externos** por período. Empate no valor é desfeito pelo identificador em ordem crescente. `participacao_pct` é a parcela do gasto externo do período.
+- `marts.gasto_por_raiz` e `marts.top_raizes`: as mesmas contas agrupando pela raiz do CNPJ (8 primeiros dígitos), com as filiais somadas.
+- `marts.comparacao_top10_cnpj_raiz`: os dois rankings lado a lado. Cada linha mostra a posição do grupo no outro critério, para ver quem muda de posição.
+- `marts.concentracao_fornecedores`: participação do top 10 (por CNPJ e por raiz), e o índice **HHI** (soma dos quadrados das participações em %, escala 0 a 10.000), também por CNPJ e por raiz.
 
-| Período | Gasto total (R$) | Fornecedores | Top 10 (%) | HHI |
-|---|---|---|---|---|
-| 2023 | 245.526.552 | 21.809 | 23,73 | 158,7 |
-| 2024 | 250.384.312 | 22.419 | 21,46 | 132,9 |
-| 2025 | 240.347.478 | 22.251 | 17,39 | 72,3 |
-| TOTAL | 736.258.343 | 40.001 | 20,85 | 117,2 |
+**Lançamento interno da Câmara.** O CNPJ `00530352000159` é o da própria Câmara dos Deputados (informação do rodapé do portal de dados abertos). Ele recebe as linhas de convenção de sinal, com valores negativos. Essas linhas **ficam no gasto total** (a soma do ano continua fechando), mas o CNPJ **sai do ranking e da concentração**: a participação do top 10 é sobre o gasto de fornecedores externos. O valor aparece à parte em `valor_lancamento_interno`.
 
-O HHI é calculado **só sobre fornecedores com total positivo** no período. Fornecedores com total zero ou negativo ficam de fora. Em todos os períodos, esse grupo é **1 fornecedor**: o CNPJ 00530352000159, com o nome "COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA". Ele recebe as linhas de convenção de sinal, que são negativas. Valores excluídos do HHI: −1.443.948 (2023), −1.821.186 (2024), −1.873.926 (2025) e −5.139.060 (TOTAL). A participação do top 10 continua sobre o gasto líquido total, que inclui esse valor negativo.
+**Raiz `00000000`.** Os CNPJs que começam com oito zeros (ex.: `00000000000001` "CELULAR FUNCIONAL", `00000000000006` "RAMAL") não são empresas: são documentos genéricos, e reúnem entidades diferentes. Por isso, cada um deles é tratado como a própria raiz, sem ser somado com os outros. Essa é uma escolha a revisar.
+
+**Concentração de fornecedores externos (sem o lançamento interno):**
+
+| Período | Gasto externo (R$) | Fornecedores | Top 10 CNPJ (%) | Top 10 raiz (%) | HHI CNPJ | HHI raiz |
+|---|---|---|---|---|---|---|
+| 2023 | 246.970.501 | 21.808 | 23,60 | 23,86 | 156,8 | 157,8 |
+| 2024 | 252.205.498 | 22.418 | 21,30 | 21,59 | 131,0 | 131,8 |
+| 2025 | 242.221.404 | 22.250 | 17,25 | 17,46 | 71,2 | 72,1 |
+| TOTAL | 741.397.403 | 40.000 | 20,71 | 20,97 | 115,6 | 116,6 |
+
+O lançamento interno (valor negativo, fora do ranking) foi de −1.443.948 (2023), −1.821.186 (2024), −1.873.926 (2025) e −5.139.060 (TOTAL).
+
+**HHI.** Calculado **só sobre grupos com total positivo** no período. Grupos com total zero ou negativo ficam de fora. Depois de tirar o lançamento interno, **nenhum fornecedor externo** ficou de fora do HHI em nenhum período (0 excluídos).
+
+**Mudanças de posição entre o ranking por CNPJ e o por raiz (top 10):**
+- 2025: a Telefônica (VIVO) sobe do 8º CNPJ para o 6º lugar por raiz, porque soma uma filial. Novacar, HPE e a Via Locadora mudam de posição. A Localiza entra no top 10 por raiz (10º) e não aparece no top 10 por CNPJ.
+- 2024 e TOTAL: a Telefônica e a Suprema trocam de posição (6º e 7º), e a Localiza entra no top 10 por raiz.
+- 2023: a Localiza e o Cascol (Norte) entram no top 10 por raiz. A Novacar cai do 8º para o 9º lugar.
+- Em nenhum período, a posição do topo (1º a 5º) muda entre os dois critérios.
 
 **Privacidade nos marts:**
 - CNPJ aparece inteiro. Pessoa física aparece só como `ID-` + 8 caracteres do hash. Nunca o CPF, nunca o hash completo, nunca o nome.
