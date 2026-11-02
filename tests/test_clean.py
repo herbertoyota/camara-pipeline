@@ -131,7 +131,7 @@ def test_nome_normalizado(con):
 
 
 def test_nome_de_pessoa_fisica_vira_rotulo(con):
-    inserir(con, txtNumero="pf", txtCNPJCPF="444.444.444-44", txtFornecedor="Maria da Silva")
+    inserir(con, txtNumero="pf", txtCNPJCPF="222.222.222-22", txtFornecedor="Maria da Silva")
     inserir(con, txtNumero="pj", txtCNPJCPF="09.296.295/0001-60", txtFornecedor="Empresa Ltda")
     refinar(con)
     assert linha(con, "pf")["fornecedor_nome"] == "PESSOA FISICA"
@@ -139,7 +139,7 @@ def test_nome_de_pessoa_fisica_vira_rotulo(con):
 
 
 def test_nome_de_pessoa_fisica_nao_aparece_no_refined(con):
-    inserir(con, txtNumero="pf", txtCNPJCPF="444.444.444-44", txtFornecedor="Maria da Silva")
+    inserir(con, txtNumero="pf", txtCNPJCPF="222.222.222-22", txtFornecedor="Maria da Silva")
     refinar(con)
     texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
     assert "MARIA" not in texto.upper()
@@ -148,21 +148,21 @@ def test_nome_de_pessoa_fisica_nao_aparece_no_refined(con):
 def test_nome_com_cpf_no_texto_nao_sai_no_refined(con):
     # CNPJ de empresário individual: o nome traz o CPF do dono.
     inserir(con, txtNumero="mei", txtCNPJCPF="40.691.496/0001-01",
-            txtFornecedor="NOME FICTICIO 3 333.333.333-33")
+            txtFornecedor="NOME FICTICIO 3 111.111.111-11")
     inserir(con, txtNumero="mei2", txtCNPJCPF="40.691.496/0001-01",
-            txtFornecedor="NOME FICTICIO 3 33333333333")
+            txtFornecedor="NOME FICTICIO 3 11111111111")
     refinar(con)
     assert linha(con, "mei")["fornecedor_nome"] == "NOME OCULTADO"
     assert linha(con, "mei")["tipo_documento_fornecedor"] == "CNPJ"
     texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
-    assert "33333333333" not in texto
-    assert "333.333.333-33" not in texto
+    assert "11111111111" not in texto
+    assert "111.111.111-11" not in texto
     assert "JOAO EXEMPLO" not in texto
 
 
 def test_nome_de_pessoa_fisica_em_cnpj_fica_oculto(con):
     # Mesmo nome de uma pessoa física em outra linha, agora com CNPJ.
-    inserir(con, txtNumero="pf", txtCNPJCPF="444.444.444-44", txtFornecedor="Maria da Silva")
+    inserir(con, txtNumero="pf", txtCNPJCPF="222.222.222-22", txtFornecedor="Maria da Silva")
     inserir(con, txtNumero="pj", txtCNPJCPF="09.296.295/0001-60", txtFornecedor="MARIA DA SILVA")
     inserir(con, txtNumero="outra", txtCNPJCPF="09.296.295/0001-60", txtFornecedor="Empresa Ltda")
     refinar(con)
@@ -171,12 +171,12 @@ def test_nome_de_pessoa_fisica_em_cnpj_fica_oculto(con):
 
 
 def test_numero_do_documento_com_cpf_do_fornecedor_nao_sai(con):
-    inserir(con, txtNumero="55555555555", txtCNPJCPF="555.555.555-55", txtFornecedor="Fornecedora")
-    inserir(con, txtNumero="NF-123", txtCNPJCPF="555.555.555-55", txtFornecedor="Fornecedora")
+    inserir(con, txtNumero="33333333333", txtCNPJCPF="333.333.333-33", txtFornecedor="Fornecedora")
+    inserir(con, txtNumero="NF-123", txtCNPJCPF="333.333.333-33", txtFornecedor="Fornecedora")
     refinar(con)
     assert linha(con, "NF-123")["num_documento"] == "NF-123"
     texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
-    assert "55555555555" not in texto
+    assert "33333333333" not in texto
 
 
 def test_cnpj_sem_cpf_no_nome_mantem_o_nome(con):
@@ -195,13 +195,13 @@ def test_documento_cnpj_fica_em_claro(con):
 
 
 def test_documento_cpf_vira_hash_e_outro_fica_em_claro(con):
-    inserir(con, txtNumero="cpf", txtCNPJCPF="444.444.444-44")
+    inserir(con, txtNumero="cpf", txtCNPJCPF="222.222.222-22")
     inserir(con, txtNumero="outro", txtCNPJCPF="1234")
     inserir(con, txtNumero="vazio", txtCNPJCPF="")
     refinar(con)
     cpf = linha(con, "cpf")
     assert cpf["tipo_documento_fornecedor"] == "CPF"
-    assert cpf["documento_fornecedor"] != "44444444444"
+    assert cpf["documento_fornecedor"] != "22222222222"
     assert len(cpf["documento_fornecedor"]) == 64  # SHA-256 em hexadecimal
     assert linha(con, "outro")["tipo_documento_fornecedor"] == "OUTRO"
     assert linha(con, "outro")["documento_fornecedor"] == "1234"
@@ -211,14 +211,14 @@ def test_documento_cpf_vira_hash_e_outro_fica_em_claro(con):
 # --- hash de CPF e salt ----------------------------------------------------
 
 def test_hash_cpf_segue_a_formula_com_salt(con):
-    inserir(con, txtNumero="cpf", txtCNPJCPF="444.444.444-44")
+    inserir(con, txtNumero="cpf", txtCNPJCPF="222.222.222-22")
     refinar(con, salt="sal-A")
-    esperado = hashlib.sha256(b"sal-A|44444444444").hexdigest()
+    esperado = hashlib.sha256(b"sal-A|22222222222").hexdigest()
     assert linha(con, "cpf")["documento_fornecedor"] == esperado
 
 
 def test_hash_cpf_deterministico_com_mesmo_salt_e_diferente_com_outro(con):
-    inserir(con, txtNumero="cpf", txtCNPJCPF="444.444.444-44")
+    inserir(con, txtNumero="cpf", txtCNPJCPF="222.222.222-22")
     refinar(con, salt="sal-A")
     primeiro = linha(con, "cpf")["documento_fornecedor"]
     refinar(con, salt="sal-A")
@@ -228,11 +228,11 @@ def test_hash_cpf_deterministico_com_mesmo_salt_e_diferente_com_outro(con):
 
 
 def test_cpf_nao_aparece_em_claro_no_refined(con):
-    inserir(con, txtNumero="cpf", txtCNPJCPF="444.444.444-44")
+    inserir(con, txtNumero="cpf", txtCNPJCPF="222.222.222-22")
     refinar(con)
     texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
-    assert "44444444444" not in texto
-    assert "444.444.444-44" not in texto
+    assert "22222222222" not in texto
+    assert "222.222.222-22" not in texto
 
 
 def test_sem_salt_falha_com_erro_claro():

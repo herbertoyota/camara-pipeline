@@ -83,7 +83,7 @@ def ids_sem_par(con: duckdb.DuckDBPyConnection) -> list[tuple]:
     return con.execute(
         f"""
         SELECT d.ano_arquivo, d.nu_deputado_id, d.ide_cadastro,
-               any_value(d.nome_parlamentar) AS nome, any_value(d.sigla_uf) AS uf, count(*) AS linhas
+               min(d.nome_parlamentar) AS nome, min(d.sigla_uf) AS uf, count(*) AS linhas
         {_FROM_SEM_PAR}
         WHERE NOT d.eh_lideranca AND dep.id_deputado IS NULL
         GROUP BY 1, 2, 3

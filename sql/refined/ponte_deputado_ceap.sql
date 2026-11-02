@@ -38,7 +38,7 @@ votos_ponte AS (
     WHERE NULLIF(TRIM(deputado_id), '') IS NOT NULL
 ),
 cadastro_unico AS (
-    SELECT nome, any_value(id_deputado) AS id_deputado
+    SELECT nome, min(id_deputado) AS id_deputado
     FROM (SELECT upper(strip_accents(nome_parlamentar)) AS nome, id_deputado FROM refined.deputados)
     GROUP BY nome
     HAVING count(*) = 1
