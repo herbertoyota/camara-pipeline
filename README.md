@@ -64,7 +64,7 @@ Marts `top_fornecedores`, `concentracao_fornecedores` e `comparacao_top10_cnpj_r
 Mart `crescimento_categorias`. Entre as categorias com gasto positivo em 2023, as maiores altas absolutas de 2023 a 2025 são *divulgação da atividade parlamentar* (+6,2%) e *manutenção de escritório de apoio* (+11,7%). A família de passagens aéreas (agregado, `eh_agregado = TRUE`) caiu 39,5%. Cautela: as linhas SIGEPA e RPA podem refletir mudança de sistema de emissão, não de gasto. Leia o agregado como gasto total com passagens.
 
 **4. Relação entre gasto e participação em votações.**
-Mart `correlacao_gasto_participacao`. Participação = votos registrados em votações nominais de plenário, no período entre o primeiro e o último voto do deputado, sobre as votações elegíveis. Com 618 deputados (mínimo de 30 votações elegíveis, pré-aprovado e a reavaliar), o Spearman entre gasto médio mensal e participação é **rho = 0,127** (IC 95%: 0,049 a 0,204). A associação é positiva e pequena: explica muito pouco da variação. Os recortes regionais não se distinguem entre si, e Centro-Oeste (n = 51) não é conclusivo. **Correlação não indica causa.**
+Mart `correlacao_gasto_participacao`. Participação = votos registrados em votações nominais de plenário, no período entre o primeiro e o último voto do deputado, sobre as votações elegíveis. Com 618 deputados (mínimo de 30 votações elegíveis, decidido e documentado), o Spearman entre gasto médio mensal e participação é **rho = 0,127** (IC 95%: 0,049 a 0,204). A associação é positiva e pequena: explica muito pouco da variação. Os recortes regionais não se distinguem entre si, e Centro-Oeste (n = 51) não é conclusivo. **Correlação não indica causa.**
 
 **5. Despesas atípicas.**
 Marts `indicadores_despesa_atipica` e `taxa_indicadores_categoria`. Três indicadores de contagem: valor acima do p99 da categoria-ano, emissão em fim de semana e mesmo valor, no mesmo dia, com o mesmo fornecedor e o mesmo deputado. Há 130.993 linhas de 641.945 despesas positivas com ao menos um deles. **Os indicadores não são evidência de desvio de conduta.** Cada um sinaliza uma característica estatística ou de calendário que pode ter explicação legítima. Uso: priorizar leitura humana.
@@ -92,7 +92,10 @@ Denominador: deputados com despesa, **sem liderança**. Liderança fica fora des
 - **CPF do deputado** (coluna `cpf`) não entra no refined. Não é necessário para nenhuma pergunta.
 - **Nome de passageiro** não entra no refined. Fica só o indicador `tem_passageiro`.
 - **Empresário individual (CNPJ)** cujo nome traz CPF ou nome de pessoa física: o nome vira `NOME OCULTADO`. O CNPJ fica.
-- **Número de documento** com 11 dígitos em linha de pessoa física vira `NULL` (pode ser CPF).
+- **Número de documento** (`num_documento`) fica no refined, para contar documentos. Em linha de pessoa física, 11 dígitos vira `NULL` (pode ser CPF). Nenhuma coluna de marts tem número de documento.
+- **URL do documento** (`urlDocumento`) não entra no refined. O raw continua com ela.
+- **Hash completo do CPF** fica só no refined (`documento_fornecedor`). A base interna `intermediario.base_gasto` usa `identificador_fornecedor` (CNPJ, ou `ID-` + 8 caracteres do hash). Nenhuma coluna de marts tem documento completo.
+- **Falso positivo esperado no teste de CPF:** cerca de 1% dos números aleatórios de 11 dígitos passam no dígito verificador. Por isso, 11 dígitos com dígito válido não bastam para dizer que é CPF. Os 36 valores de número de documento que passam no dígito estão em linhas de CNPJ e não coincidem com nenhum CPF do raw (fornecedores pessoa física nem deputados).
 - **Marts:** CNPJ aparece inteiro, por ser dado público do fornecedor. Não há nome de pessoa física nem número de documento. Os nomes de deputados são nomes parlamentares públicos.
 
 ## Decisões de limpeza (refined)
@@ -144,7 +147,7 @@ CNPJs que começam com oito zeros (ex.: celular funcional, ramal, software) não
 ## Participação em votações: notas
 
 - **Universo:** votações nominais de plenário (órgão `PLEN`). Votações de comissão têm poucos votantes (mediana de 37, contra 409 no plenário), então ficam de fora.
-- **Artigo 17:** os votos com esse tipo ficam fora do numerador e do denominador. **A documentação oficial do arquivo não define o termo.** A exclusão é premissa; há 953 votos de 39 deputados, com 57% concentrados em dois presidentes da Câmara.
+- **Artigo 17:** os votos com esse tipo ficam fora do numerador e do denominador. **A documentação oficial do arquivo não define o termo.** A exclusão é decisão do projeto, documentada aqui; há 953 votos de 39 deputados, com 57% concentrados em dois presidentes da Câmara.
 - **Presença não é voto.** O site da Câmara mostra presença em plenário como contagem de dias, em período não declarado. A métrica daqui é fração de votações nominais. As duas medidas divergem, e a comparação feita nas notas do projeto não valida a métrica.
 
 ## Limitações
@@ -168,7 +171,7 @@ src/                 código Python: download, carga do raw, limpeza, marts, run
   validar_runner.py  duas execuções seguidas e comparação
 sql/
   refined/           regras de limpeza (despesas, deputados, votos, ponte, view de despesas)
-  marts/             uma tabela por arquivo; base_gasto é a base de todos os marts de gasto
+  marts/             uma tabela por arquivo (schema marts). A base de gasto fica em intermediario.base_gasto, fora do schema marts
 tests/               pytest com dados inventados, em memória (nenhum teste lê data/)
 data/                dados locais, fora do git (raw/, refined/, marts/, camara.duckdb)
 notebooks/           exploração
@@ -187,5 +190,3 @@ Testes com dados inventados, em DuckDB em memória. Não abrem `data/camara.duck
 1. **Licença dos dados:** confirmar nos Termos de uso do portal (ver a seção de fonte).
 2. **Lançamento interno:** confirmar o CNPJ `00530352000159` no rodapé do portal de dados abertos.
 3. **Banco local:** `data/camara.duckdb` foi gerado antes dos ajustes de desempate e arredondamento. Rode `python -m src.run_pipeline` com o `CAMARA_SALT` do projeto para atualizá-lo.
-4. **Mínimo de 30 votações elegíveis:** pré-aprovado, a reavaliar.
-5. **Artigo 17:** confirmar o significado no material oficial, ou tratar a exclusão como premissa explícita.
