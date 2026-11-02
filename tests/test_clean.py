@@ -287,6 +287,13 @@ def test_pessoais_fora_do_refined(con):
     assert linha(con, "q")["tem_passageiro"] is False
 
 
+def test_url_do_documento_fica_fora_do_refined(con):
+    inserir(con, txtNumero="u")
+    refinar(con)
+    colunas = {r[0] for r in con.execute("DESCRIBE refined.despesas").fetchall()}
+    assert "url_documento" not in colunas
+
+
 def test_empilha_os_tres_anos(con):
     inserir(con, ano=2023, txtNumero="a")
     inserir(con, ano=2024, txtNumero="b")

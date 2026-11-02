@@ -57,7 +57,6 @@ base AS (
                                                                          AS data_pagamento_restituicao,
         TRY_CAST(NULLIF(TRIM(vlrRestituicao), '') AS DECIMAL(18, 2))     AS valor_restituicao,
         NULLIF(TRIM(txtTrecho), '')                                      AS trecho,
-        NULLIF(TRIM(urlDocumento), '')                                   AS url_documento,
         NULLIF(TRIM(txtPassageiro), '') IS NOT NULL                      AS tem_passageiro
     FROM bruto
 ),
@@ -132,6 +131,5 @@ SELECT
         AS data_pagamento_fora_da_faixa,
     valor_restituicao,
     trecho,
-    url_documento,
     tem_passageiro
 FROM classificado;
