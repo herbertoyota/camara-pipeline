@@ -14,11 +14,14 @@
 --      disso o indicador é NULL. Por construção, sinaliza cerca de 1% das linhas de cada categoria-ano.
 --      razao_sobre_mediana_categoria = valor / mediana da categoria-ano (mesma regra de mínimo).
 --   2. emissao_fim_de_semana: data_emissao cai em sábado ou domingo. NULL quando data_emissao é nula.
---   3. mesmo_fornecedor_mesmo_dia_mesmo_deputado: o mesmo deputado tem 2 ou mais documentos distintos
---      (id_documento) com o mesmo fornecedor na mesma data. NULL quando id_documento ou data_emissao é
---      nulo. Documento sem identificador não conta, para não inflar o indicador.
+--   3. mesmo_fornecedor_mesmo_dia_mesmo_deputado (CONTEXTO, fora da contagem): o mesmo deputado tem 2 ou
+--      mais documentos distintos com o mesmo fornecedor na mesma data. Muito comum e com motivos legítimos
+--      (várias contas no mesmo dia), por isso não entra em motivos_contagem.
+--   4. mesmo_valor_mesmo_dia_mesmo_fornecedor_mesmo_deputado: 2 ou mais documentos distintos com o mesmo
+--      fornecedor, na mesma data e com o mesmo valor. Mais específico que o indicador 3.
+--      NULL quando id_documento ou data_emissao é nulo; documento sem identificador não conta.
 --
--- motivos_contagem = quantos dos três indicadores estão TRUE na linha (0 a 3).
+-- motivos_contagem = quantos dos indicadores 1, 2 e 4 estão TRUE na linha (0 a 3).
 -- Não contém número de documento, URL, nome de fornecedor pessoa física nem nome de fornecedor:
 -- só o identificador (CNPJ ou 'ID-' + 8 caracteres do hash).
 
@@ -59,6 +62,17 @@ documentos_do_dia AS (
     WHERE id_documento IS NOT NULL AND data_emissao IS NOT NULL
     GROUP BY id_deputado, documento_fornecedor, data_emissao
 ),
+documentos_do_dia_valor AS (
+    SELECT
+        id_deputado,
+        documento_fornecedor,
+        data_emissao,
+        valor_liquido,
+        count(DISTINCT id_documento) AS documentos
+    FROM positivas
+    WHERE id_documento IS NOT NULL AND data_emissao IS NOT NULL
+    GROUP BY id_deputado, documento_fornecedor, data_emissao, valor_liquido
+),
 com_indicadores AS (
     SELECT
         p.id_deputado,
@@ -79,8 +93,15 @@ com_indicadores AS (
         CASE WHEN p.data_emissao IS NULL THEN NULL
              ELSE isodow(p.data_emissao) IN (6, 7) END                  AS emissao_fim_de_semana,
         CASE WHEN p.id_documento IS NULL OR p.data_emissao IS NULL THEN NULL
-             ELSE g.documentos >= 2 END                                 AS mesmo_fornecedor_mesmo_dia_mesmo_deputado
+             ELSE g.documentos >= 2 END                                 AS mesmo_fornecedor_mesmo_dia_mesmo_deputado,
+        CASE WHEN p.id_documento IS NULL OR p.data_emissao IS NULL THEN NULL
+             ELSE gv.documentos >= 2 END                                AS mesmo_valor_mesmo_dia_mesmo_fornecedor_mesmo_deputado
     FROM positivas p
+    LEFT JOIN documentos_do_dia_valor gv
+        ON gv.id_deputado = p.id_deputado
+       AND gv.documento_fornecedor = p.documento_fornecedor
+       AND gv.data_emissao = p.data_emissao
+       AND gv.valor_liquido = p.valor_liquido
     LEFT JOIN estatistica_categoria e
         ON e.tipo_despesa = p.tipo_despesa AND e.ano = p.ano
     LEFT JOIN documentos_do_dia g
@@ -92,5 +113,5 @@ SELECT
     c.*,
     (COALESCE(c.valor_acima_do_p99_da_categoria, FALSE)::INTEGER
      + COALESCE(c.emissao_fim_de_semana, FALSE)::INTEGER
-     + COALESCE(c.mesmo_fornecedor_mesmo_dia_mesmo_deputado, FALSE)::INTEGER) AS motivos_contagem
+     + COALESCE(c.mesmo_valor_mesmo_dia_mesmo_fornecedor_mesmo_deputado, FALSE)::INTEGER) AS motivos_contagem
 FROM com_indicadores c;

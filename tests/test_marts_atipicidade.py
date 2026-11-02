@@ -128,3 +128,14 @@ def test_motivos_contagem_soma_os_indicadores(con):
 def test_mart_nao_tem_colunas_proibidas(con):
     colunas = {c[0] for c in con.execute("DESCRIBE marts.indicadores_despesa_atipica").fetchall()}
     assert not colunas & {"num_documento", "url_documento", "documento_fornecedor", "fornecedor_nome"}
+
+
+def test_mesmo_valor_exige_valor_identico(con):
+    # Dep 4 tem uma linha com documento 403 de valor 10, no mesmo dia que a de dep 3: não é do mesmo deputado.
+    # Dep 3: as duas linhas com valor 10 e documentos distintos no mesmo dia são TRUE; a sem id é NULL.
+    flags = sorted([r[0] for r in con.execute(
+        "SELECT mesmo_valor_mesmo_dia_mesmo_fornecedor_mesmo_deputado FROM marts.indicadores_despesa_atipica "
+        "WHERE id_deputado = 3").fetchall()], key=lambda v: (v is None, v))
+    assert flags == [True, True, None]
+    assert con.execute("SELECT mesmo_valor_mesmo_dia_mesmo_fornecedor_mesmo_deputado FROM marts.indicadores_despesa_atipica "
+                       "WHERE id_deputado = 4").fetchone()[0] is False
