@@ -27,6 +27,7 @@ ARQUIVOS = (
     "crescimento_categorias",
     "participacao_deputado",
     "correlacao_gasto_participacao",
+    "indicadores_despesa_atipica",
     "gasto_por_fornecedor",
     "gasto_por_raiz",
     "top_fornecedores",
