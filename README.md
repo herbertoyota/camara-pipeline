@@ -85,6 +85,8 @@ Denominador: deputados com despesa, **sem liderança**. Liderança fica fora des
 
 ## Decisões de privacidade
 
+- **Regra para testes:** os testes usam só dados inventados. Nunca copie linhas do raw para fixtures, nem CPF, nome ou número de documento reais. CPFs de teste têm dígitos iguais, por isso não são CPF válido.
+
 - **CPF de fornecedor pessoa física** vira hash SHA-256 com salt vindo de `CAMARA_SALT`. Nos marts, aparece só como `ID-` + 8 caracteres do hash. Nunca o CPF, nunca o hash completo.
 - **Nome de fornecedor pessoa física** sai como `PESSOA FISICA` no refined e nos marts.
 - **CPF do deputado** (coluna `cpf`) não entra no refined. Não é necessário para nenhuma pergunta.
