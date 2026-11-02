@@ -35,6 +35,7 @@ def con():
         valor_documento DECIMAL(18,2), valor_glosa DECIMAL(18,2), valor_liquido DECIMAL(18,2),
         liquido_diverge BOOLEAN)""")
     c.execute("CREATE TABLE refined.deputados (id_deputado INTEGER, nome_parlamentar VARCHAR)")
+    c.execute("CREATE TABLE refined.votos (id_votacao VARCHAR, id_deputado INTEGER, tipo_voto VARCHAR, data_votacao DATE)")
     c.execute("INSERT INTO refined.deputados VALUES (1, 'Dep Um')")
     inserir(c, [
         (2023, "ALFA", 100), (2024, "ALFA", 150), (2025, "ALFA", 200),
