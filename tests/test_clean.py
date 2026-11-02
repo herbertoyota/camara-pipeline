@@ -148,16 +148,16 @@ def test_nome_de_pessoa_fisica_nao_aparece_no_refined(con):
 def test_nome_com_cpf_no_texto_nao_sai_no_refined(con):
     # CNPJ de empresário individual: o nome traz o CPF do dono.
     inserir(con, txtNumero="mei", txtCNPJCPF="40.691.496/0001-01",
-            txtFornecedor="NOME FICTICIO 5 222.222.222-22")
+            txtFornecedor="NOME FICTICIO 3 333.333.333-33")
     inserir(con, txtNumero="mei2", txtCNPJCPF="40.691.496/0001-01",
-            txtFornecedor="NOME FICTICIO 5 22222222222")
+            txtFornecedor="NOME FICTICIO 3 33333333333")
     refinar(con)
     assert linha(con, "mei")["fornecedor_nome"] == "NOME OCULTADO"
     assert linha(con, "mei")["tipo_documento_fornecedor"] == "CNPJ"
     texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
-    assert "22222222222" not in texto
-    assert "222.222.222-22" not in texto
-    assert "VILMARA" not in texto
+    assert "33333333333" not in texto
+    assert "333.333.333-33" not in texto
+    assert "JOAO EXEMPLO" not in texto
 
 
 def test_nome_de_pessoa_fisica_em_cnpj_fica_oculto(con):
@@ -171,12 +171,12 @@ def test_nome_de_pessoa_fisica_em_cnpj_fica_oculto(con):
 
 
 def test_numero_do_documento_com_cpf_do_fornecedor_nao_sai(con):
-    inserir(con, txtNumero="11111111111", txtCNPJCPF="003.667.080/40  -", txtFornecedor="Fornecedora")
-    inserir(con, txtNumero="NF-123", txtCNPJCPF="003.667.080/40  -", txtFornecedor="Fornecedora")
+    inserir(con, txtNumero="55555555555", txtCNPJCPF="555.555.555-55", txtFornecedor="Fornecedora")
+    inserir(con, txtNumero="NF-123", txtCNPJCPF="555.555.555-55", txtFornecedor="Fornecedora")
     refinar(con)
     assert linha(con, "NF-123")["num_documento"] == "NF-123"
     texto = repr(con.execute("SELECT * FROM refined.despesas").fetchall())
-    assert "11111111111" not in texto
+    assert "55555555555" not in texto
 
 
 def test_cnpj_sem_cpf_no_nome_mantem_o_nome(con):

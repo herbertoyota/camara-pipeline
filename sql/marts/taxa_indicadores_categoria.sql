@@ -1,7 +1,7 @@
 -- marts.taxa_indicadores_categoria: proporção de cada indicador de atipicidade por categoria e ano.
 --
 -- Só agregado: não contém deputado nem fornecedor. Cada taxa usa como denominador as linhas em que
--- o indicador se aplica (NULL não conta). Indicadores de atipicidade não são evidência de irregularidade.
+-- o indicador se aplica (NULL não conta). Indicadores de atipicidade não são evidência de desvio de conduta.
 -- Ver README, seção "Indicadores de atipicidade".
 
 CREATE OR REPLACE TABLE marts.taxa_indicadores_categoria AS
