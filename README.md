@@ -240,7 +240,45 @@ As unidades (dias de sessão contra votações nominais) e o período não coinc
 
 **Mínimo de votações elegíveis:** 30, pré-aprovado e a reavaliar. Com a distribuição de plenário, mantém 618 de 621 deputados.
 
-**Correlação e pergunta 4 completa:** ainda não calculadas (aguardam aprovação do mínimo e da leitura da comparação com o site).
+### O que a métrica mede (e o que não mede)
+
+A métrica é **participação em votações nominais de plenário**. **Não é presença.** Presença em sessão e voto nominal são coisas diferentes:
+- Quem preside sessões (a Mesa) registra presença, mas tende a votar pouco. A hipótese é que os votos de presidência aparecem como "Artigo 17" (excluídos), mas a documentação oficial não confirma isso. Por isso, Arthur Lira (13,7%) e Hugo Motta (43,6%) ficam com participação baixa, mesmo estando no plenário em muitas sessões.
+- Um deputado pode estar presente numa sessão e não ter voto registrado em nenhuma das votações nominais dessa sessão.
+
+**Checagem interna de coerência.** A mediana de votos por votação de plenário é 409, e a Câmara tem 513 cadeiras. Isso dá cerca de 80% de votantes por votação, coerente com a mediana de participação de 80,3%.
+
+**Por que a comparação com o site não é válida.** O site mostra "Presença em Plenário" como **contagem de dias**, para um período que a página não declara. A minha métrica é uma fração de votações nominais em 2023–2025. São unidades (dias contra votações) e períodos diferentes, então os números não se comparam. A comparação feita antes serviu só para notar que os dois conceitos divergem (Motta e Acácio trocam de ordem).
+
+### Correlação entre gasto e participação
+
+`marts.correlacao_gasto_participacao`. **Correlação não indica causa.** Um rho positivo significa só que, nesse grupo, quem gasta mais tende a participar mais (ou menos, se negativo). Não diz que gastar causa participação, nem o contrário. Pode haver fatores comuns, como cargo, liderança partidária ou região.
+
+- **Unidade:** deputado. x = gasto médio mensal do deputado (média dos meses com despesa). y = participação em plenário.
+- **Por que não o par deputado-mês:** a participação é uma só por deputado. Pares deputado-mês repetem o mesmo y e inflam o n, o que daria uma significância falsa. A linha "pares deputado-mês" aparece só como referência.
+- **Entram:** deputados com pelo menos 30 votações elegíveis de plenário (618 deputados). **Ficam de fora:** lideranças (não têm id de deputado) e deputados sem voto de plenário.
+- **Método:** Spearman por postos, com postos médios nos empates. É a correlação de Pearson entre os postos, que é a definição com empates.
+
+| Recorte | n | rho de Spearman |
+|---|---|---|
+| Todos | 618 | 0,128 |
+| Sem deputados que votaram Artigo 17 | 579 | 0,138 |
+| Norte | 80 | 0,031 |
+| Nordeste | 186 | 0,173 |
+| Centro-Oeste | 51 | −0,029 |
+| Sudeste | 210 | 0,204 |
+| Sul | 91 | 0,103 |
+| Referência: pares deputado-mês (n inflado) | 18.523 | 0,050 |
+
+Leitura: a associação é **fraca** em todos os recortes. A maior é no Sudeste (0,20) e a menor, no Centro-Oeste, que é negativa e pequena (n = 51). Com n = 618, um rho de 0,13 não é zero por acaso, mas o tamanho do efeito é pequeno. Os recortes regionais têm n menor e intervalos mais largos.
+
+**Limitações da correlação:**
+- **Proxy de exercício:** a janela vai do primeiro ao último voto de plenário. Para a maioria, cobre quase todo o período (ver a seção de participação).
+- **Licenças e afastamentos** não são identificados (o arquivo em massa não traz datas de mandato). Um deputado licenciado aparece com participação baixa.
+- **Mesa:** quem preside vota pouco e costuma gastar de forma diferente. Os recortes "sem Artigo 17" tentam tirar esse efeito, mas não eliminam quem preside sem ter votado Artigo 17.
+- **Gasto médio mensal** é uma média de meses com despesa. Um deputado que gastou muito em um mês só fica com média alta.
+- **Recortes regionais** têm n pequeno; o resultado de Centro-Oeste (n = 51) não é conclusivo.
+- **Sem controle de variáveis** (cargo, partido, UF do mandato) na correlação.
 
 ## Marts de gasto e de fornecedores (etapa 5)
 
