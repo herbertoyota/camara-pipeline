@@ -19,6 +19,7 @@ SELECT
     r.raiz,
     r.nome_principal,
     r.tipo_documento_fornecedor,
+    r.eh_documento_generico,
     r.cnpjs,
     r.valor_liquido_total,
     r.linhas,

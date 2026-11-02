@@ -8,8 +8,10 @@
 --   '00000000' (documentos genéricos, não empresas) usam o próprio identificador.
 -- fornecedor_nome: o nome mais frequente do documento. Pessoa física sai como
 -- 'PESSOA FISICA' e nome ocultado como 'NOME OCULTADO'.
--- eh_lancamento_interno: CNPJ da própria Câmara. Fica no gasto total; o ranking e a
---   concentração de fornecedores externos o excluem.
+-- eh_lancamento_interno: identificado pelo nome na fonte e pelas linhas que recebe (a confirmar
+--   no rodapé do portal). Fica no gasto total; o ranking e a concentração de externos o excluem.
+-- eh_documento_generico: CNPJ de raiz 00000000 (documento genérico, não empresa). Continua como
+--   fornecedor externo, sem agrupamento por raiz.
 --
 -- valor_liquido_total usa a métrica aprovada (SUM(valor_liquido), estornos abatem).
 
@@ -52,6 +54,8 @@ SELECT
     mode(fornecedor_nome)                                       AS fornecedor_nome,
     mode(tipo_despesa)                                          AS tipo_despesa_predominante,
     bool_or(eh_lancamento_interno)                              AS eh_lancamento_interno,
+    bool_or(tipo_documento_fornecedor = 'CNPJ' AND left(identificador, 8) = '00000000')
+                                                                AS eh_documento_generico,
     sum(valor_liquido)                                          AS valor_liquido_total,
     count(*)                                                    AS linhas
 FROM identificado

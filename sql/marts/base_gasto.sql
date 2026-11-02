@@ -27,7 +27,8 @@ SELECT
     d.valor_liquido                                                      AS valor_liquido,
     COALESCE(d.valor_glosa IS NULL AND d.valor_liquido = -d.valor_documento, FALSE)
                                                                          AS eh_convencao_sinal,
-    -- CNPJ da própria Câmara dos Deputados (rodapé do portal de dados abertos). Lançamento interno:
+    -- Lançamento interno: CNPJ identificado pelo nome na fonte e pelas linhas que recebe (a confirmar
+    -- no rodapé do portal de dados abertos). Não afirmar que é o CNPJ da Câmara até confirmar.
     -- fica no gasto total, mas sai do ranking e da concentração de fornecedores externos.
     COALESCE(d.documento_fornecedor = '00530352000159', FALSE)           AS eh_lancamento_interno,
     COALESCE(d.liquido_diverge AND NOT COALESCE(d.valor_glosa IS NULL AND d.valor_liquido = -d.valor_documento, FALSE), FALSE)

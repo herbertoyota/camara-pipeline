@@ -1,6 +1,6 @@
 -- marts.concentracao_fornecedores: concentração do gasto em fornecedores externos, por período.
 --
--- Universo: fornecedores externos (sem o lançamento interno da Câmara). O lançamento interno
+-- Universo: fornecedores externos (sem o lançamento interno, a confirmar). O lançamento interno
 -- aparece à parte em valor_lancamento_interno, para o total do ano continuar fechando.
 --
 -- Métricas:

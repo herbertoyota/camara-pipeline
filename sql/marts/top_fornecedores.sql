@@ -1,6 +1,6 @@
 -- marts.top_fornecedores: 10 maiores fornecedores externos por período (2023, 2024, 2025 e TOTAL).
 --
--- Exclui o lançamento interno (CNPJ da própria Câmara). participacao_pct é sobre o gasto
+-- Exclui o lançamento interno (identificado a partir da fonte; a confirmar). participacao_pct é sobre o gasto
 -- de fornecedores externos do período, não sobre o gasto total.
 -- Ranking: valor_liquido_total decrescente. Empate no valor é desfeito pelo identificador
 -- em ordem crescente, então o top 10 tem sempre 10 linhas quando há 10 fornecedores externos.
@@ -26,6 +26,7 @@ ranqueado AS (
         f.raiz,
         f.fornecedor_nome,
         f.tipo_despesa_predominante,
+        f.eh_documento_generico,
         f.valor_liquido_total,
         f.linhas
     FROM externos f
@@ -38,6 +39,7 @@ SELECT
     r.raiz,
     r.fornecedor_nome,
     r.tipo_despesa_predominante,
+    r.eh_documento_generico,
     r.valor_liquido_total,
     r.linhas,
     100.0 * r.valor_liquido_total / t.gasto_total               AS participacao_pct

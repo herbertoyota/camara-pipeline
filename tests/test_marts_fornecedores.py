@@ -209,3 +209,24 @@ def test_concentracao_raiz_tem_metricas(con):
         "SELECT participacao_top10_raiz_pct, hhi_raiz FROM marts.concentracao_fornecedores WHERE periodo = '2024'"
     ).fetchone()
     assert row[0] is not None and row[1] is not None
+
+
+def test_documento_generico_nao_se_agrupa_e_fica_marcado(con):
+    inserir(con, [linha(documento_fornecedor="00000000000001", fornecedor_nome="CELULAR FUNCIONAL",
+                        valor_documento=50, valor_glosa=0, valor_liquido=50),
+                  linha(documento_fornecedor="00000000000010", fornecedor_nome="OUTRO GENERICO",
+                        valor_documento=30, valor_glosa=0, valor_liquido=30)])
+    construir_marts(con)
+    flags = con.execute(
+        "SELECT identificador, eh_documento_generico FROM marts.gasto_por_fornecedor "
+        "WHERE identificador LIKE '0000000000%' AND periodo = '2024' ORDER BY 1"
+    ).fetchall()
+    assert flags == [("00000000000001", True), ("00000000000010", True)]
+    raizes = {r[0] for r in con.execute(
+        "SELECT raiz FROM marts.gasto_por_raiz WHERE periodo = '2024' AND eh_documento_generico"
+    ).fetchall()}
+    assert raizes == {"00000000000001", "00000000000010"}  # cada um é a própria raiz
+    # Continuam como fornecedores externos: entram no total externo.
+    assert float(con.execute(
+        "SELECT gasto_total FROM marts.concentracao_fornecedores WHERE periodo = '2024'"
+    ).fetchone()[0]) == 2410.0 + 80.0
