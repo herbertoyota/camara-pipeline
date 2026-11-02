@@ -165,3 +165,47 @@ def test_hhi_so_com_fornecedores_de_total_positivo(con):
     assert excluidos == 1 and float(valor_excl) == -40.0
     positivos = [800, 800, 600, 80, 50] + [10] * 8  # os 13 fornecedores com total positivo
     assert float(hhi) == pytest.approx(sum((100.0 * v / 2370.0) ** 2 for v in positivos), rel=1e-6)
+
+
+def test_lancamento_interno_fica_no_total_e_sai_do_ranking(con):
+    inserir(con, [linha(documento_fornecedor="00530352000159", fornecedor_nome="COMPLEMENTACAO DO AUXILIO",
+                        valor_documento=1000, valor_glosa=0, valor_liquido=1000)])
+    construir_marts(con)
+    interno = con.execute(
+        "SELECT eh_lancamento_interno, valor_liquido_total FROM marts.gasto_por_fornecedor "
+        "WHERE identificador = '00530352000159' AND periodo = '2024'"
+    ).fetchone()
+    assert interno[0] is True and float(interno[1]) == 1000.0
+    gasto, interno_val = con.execute(
+        "SELECT gasto_total, valor_lancamento_interno FROM marts.concentracao_fornecedores WHERE periodo = '2024'"
+    ).fetchone()
+    assert float(gasto) == 2410.0 and float(interno_val) == 1000.0  # gasto externo; interno à parte
+    ids = {r[0] for r in con.execute("SELECT identificador FROM marts.top_fornecedores WHERE periodo = '2024'").fetchall()}
+    assert "00530352000159" not in ids and len(ids) == 10
+
+
+def test_raiz_soma_filiais_e_muda_a_posicao_do_grupo(con):
+    # Filial de ALFA com 300: a raiz 11111111 vira 1100 e passa a liderar o ranking por raiz.
+    inserir(con, [linha(documento_fornecedor="11111111000222", fornecedor_nome="ALFA FILIAL",
+                        valor_documento=300, valor_glosa=0, valor_liquido=300)])
+    construir_marts(con)
+    raiz = con.execute(
+        "SELECT valor_liquido_total, cnpjs FROM marts.gasto_por_raiz WHERE raiz = '11111111' AND periodo = '2024'"
+    ).fetchone()
+    assert float(raiz[0]) == 1100.0 and raiz[1] == 2
+    top_raiz = con.execute(
+        "SELECT raiz, posicao FROM marts.top_raizes WHERE periodo = '2024' AND posicao = 1"
+    ).fetchone()
+    assert top_raiz[0] == "11111111"
+    beta = con.execute(
+        "SELECT posicao, posicao_no_outro_ranking FROM marts.comparacao_top10_cnpj_raiz "
+        "WHERE ranking = 'CNPJ' AND chave = '22222222000122' AND periodo = '2024'"
+    ).fetchone()
+    assert beta == (2, 2)  # BETA é 2º por CNPJ; a raiz 22222222 é 2ª por raiz
+
+
+def test_concentracao_raiz_tem_metricas(con):
+    row = con.execute(
+        "SELECT participacao_top10_raiz_pct, hhi_raiz FROM marts.concentracao_fornecedores WHERE periodo = '2024'"
+    ).fetchone()
+    assert row[0] is not None and row[1] is not None

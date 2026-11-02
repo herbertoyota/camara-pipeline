@@ -1,14 +1,17 @@
--- marts.top_fornecedores: 10 maiores fornecedores por período (2023, 2024, 2025 e TOTAL).
+-- marts.top_fornecedores: 10 maiores fornecedores externos por período (2023, 2024, 2025 e TOTAL).
 --
--- Ranking: valor_liquido_total decrescente. Empate no valor é desfeito pelo
--- identificador em ordem crescente, então o top 10 tem sempre 10 linhas
--- por período (quando houver pelo menos 10 fornecedores) e é reproduzível.
--- participacao_pct: parcela do gasto total do período.
+-- Exclui o lançamento interno (CNPJ da própria Câmara). participacao_pct é sobre o gasto
+-- de fornecedores externos do período, não sobre o gasto total.
+-- Ranking: valor_liquido_total decrescente. Empate no valor é desfeito pelo identificador
+-- em ordem crescente, então o top 10 tem sempre 10 linhas quando há 10 fornecedores externos.
 
 CREATE OR REPLACE TABLE marts.top_fornecedores AS
-WITH totais AS (
+WITH externos AS (
+    SELECT * FROM marts.gasto_por_fornecedor WHERE NOT eh_lancamento_interno
+),
+totais AS (
     SELECT periodo, sum(valor_liquido_total) AS gasto_total
-    FROM marts.gasto_por_fornecedor
+    FROM externos
     GROUP BY periodo
 ),
 ranqueado AS (
@@ -20,17 +23,19 @@ ranqueado AS (
         )                                                       AS posicao,
         f.tipo_documento_fornecedor,
         f.identificador,
+        f.raiz,
         f.fornecedor_nome,
         f.tipo_despesa_predominante,
         f.valor_liquido_total,
         f.linhas
-    FROM marts.gasto_por_fornecedor f
+    FROM externos f
 )
 SELECT
     r.periodo,
     r.posicao,
     r.tipo_documento_fornecedor,
     r.identificador,
+    r.raiz,
     r.fornecedor_nome,
     r.tipo_despesa_predominante,
     r.valor_liquido_total,

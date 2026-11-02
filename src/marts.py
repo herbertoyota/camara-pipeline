@@ -25,8 +25,11 @@ ARQUIVOS = (
     "gasto_por_deputado_ano",
     "gasto_resumo_ano",
     "gasto_por_fornecedor",
+    "gasto_por_raiz",
     "top_fornecedores",
+    "top_raizes",
     "concentracao_fornecedores",
+    "comparacao_top10_cnpj_raiz",
 )
 
 
@@ -67,13 +70,15 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
     if _soma(con, "SELECT count(*) FROM marts.base_gasto WHERE documento_fornecedor IS NULL") != 0:
         raise RuntimeError("há despesas sem documento de fornecedor")
 
-    # Concentração: o gasto total de cada período bate com a base.
-    for periodo, total in con.execute("SELECT periodo, gasto_total FROM marts.concentracao_fornecedores").fetchall():
+    # Concentração: externo + lançamento interno = gasto da base em cada período.
+    for periodo, externo, interno in con.execute(
+        "SELECT periodo, gasto_total, valor_lancamento_interno FROM marts.concentracao_fornecedores"
+    ).fetchall():
         if periodo == "TOTAL":
             esperado = base
         else:
             esperado = _soma(con, f"SELECT sum(valor_liquido) FROM marts.base_gasto WHERE ano = {int(periodo)}")
-        if abs(float(total) - esperado) > 0.005:
+        if abs(float(externo) + float(interno) - esperado) > 0.005:
             raise RuntimeError(f"concentracao_fornecedores {periodo} não soma o gasto da base")
 
     # Top 10: 10 linhas por período quando há pelo menos 10 fornecedores.
@@ -91,6 +96,12 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
     if abs(_soma(con, "SELECT sum(valor_liquido_total) FROM marts.gasto_por_partido_mes")
            - base) > 0.005:
         raise RuntimeError("gasto_por_partido_mes não soma o gasto da base")
+
+    # Top 10 por raiz: 10 linhas por período quando há 10 raízes externas.
+    for periodo, n in con.execute("SELECT periodo, count(*) FROM marts.top_raizes GROUP BY 1").fetchall():
+        raizes = con.execute("SELECT count(*) FROM marts.gasto_por_raiz WHERE periodo = ?", [periodo]).fetchone()[0]
+        if n != min(10, raizes):
+            raise RuntimeError(f"top_raizes {periodo} tem {n} linhas, esperado {min(10, raizes)}")
 
     # O mart por deputado cobre só deputados (sem liderança).
     gasto_deputados = _soma(con, "SELECT sum(valor_liquido) FROM marts.base_gasto WHERE NOT eh_lideranca")

@@ -3,22 +3,24 @@
 -- Fornecedor identificado pelo documento (exibido como identificador):
 --   - CNPJ: aparece inteiro (dado público do fornecedor).
 --   - CPF (pessoa física): aparece só como 'ID-' + 8 primeiros caracteres do hash
---     salgado. Nunca o CPF, nunca o nome.
+--     salgado. Nunca o CPF, nunca o hash completo, nunca o nome.
+-- raiz: os 8 primeiros dígitos do CNPJ (empresa, com filiais). Pessoa física e a raiz
+--   '00000000' (documentos genéricos, não empresas) usam o próprio identificador.
 -- fornecedor_nome: o nome mais frequente do documento. Pessoa física sai como
 -- 'PESSOA FISICA' e nome ocultado como 'NOME OCULTADO'.
+-- eh_lancamento_interno: CNPJ da própria Câmara. Fica no gasto total; o ranking e a
+--   concentração de fornecedores externos o excluem.
 --
--- valor_liquido_total usa a mesma métrica aprovada (SUM(valor_liquido), estornos abatem).
--- Os valores de liderança entram: são gasto da Câmara com fornecedor.
--- Documento vazio não existe nos dados; se aparecer, a carga de marts falha.
+-- valor_liquido_total usa a métrica aprovada (SUM(valor_liquido), estornos abatem).
 
 CREATE OR REPLACE TABLE marts.gasto_por_fornecedor AS
 WITH base AS (
     SELECT CAST(ano AS VARCHAR) AS periodo, documento_fornecedor, tipo_documento_fornecedor,
-           fornecedor_nome, tipo_despesa, valor_liquido
+           fornecedor_nome, tipo_despesa, eh_lancamento_interno, valor_liquido
     FROM marts.base_gasto
     UNION ALL
     SELECT 'TOTAL' AS periodo, documento_fornecedor, tipo_documento_fornecedor,
-           fornecedor_nome, tipo_despesa, valor_liquido
+           fornecedor_nome, tipo_despesa, eh_lancamento_interno, valor_liquido
     FROM marts.base_gasto
 ),
 identificado AS (
@@ -31,6 +33,7 @@ identificado AS (
         END AS identificador,
         fornecedor_nome,
         tipo_despesa,
+        eh_lancamento_interno,
         valor_liquido
     FROM base
 )
@@ -39,9 +42,17 @@ SELECT
     periodo,
     tipo_documento_fornecedor,
     identificador,
+    -- Raiz '00000000' não é uma empresa: são documentos genéricos (linhas de telefonia e
+    -- serviços sem CNPJ próprio). Esses documentos não se agrupam: cada um é a própria raiz.
+    CASE
+        WHEN tipo_documento_fornecedor = 'CNPJ' AND left(identificador, 8) <> '00000000'
+            THEN left(identificador, 8)
+        ELSE identificador
+    END                                                         AS raiz,
     mode(fornecedor_nome)                                       AS fornecedor_nome,
-    sum(valor_liquido)                                          AS valor_liquido_total,
     mode(tipo_despesa)                                          AS tipo_despesa_predominante,
+    bool_or(eh_lancamento_interno)                              AS eh_lancamento_interno,
+    sum(valor_liquido)                                          AS valor_liquido_total,
     count(*)                                                    AS linhas
 FROM identificado
 GROUP BY periodo, tipo_documento_fornecedor, identificador;
