@@ -7,7 +7,7 @@
 
 CREATE OR REPLACE TABLE marts.gasto_por_deputado_mes AS
 WITH base AS (
-    SELECT * FROM marts.base_gasto WHERE NOT eh_lideranca AND id_deputado IS NOT NULL
+    SELECT * FROM intermediario.base_gasto WHERE NOT eh_lideranca AND id_deputado IS NOT NULL
 ),
 contagem_partido AS (
     SELECT ano, mes, id_deputado, partido, count(*) AS n FROM base GROUP BY ano, mes, id_deputado, partido

@@ -34,7 +34,7 @@ anual AS (
         count(*) FILTER (WHERE divergente_inexplicada)              AS linhas_divergentes,
         count(DISTINCT id_deputado)                                 AS deputados_com_despesa,
         COALESCE(sum(valor_liquido) FILTER (WHERE NOT eh_lideranca), 0) AS valor_liquido_deputados
-    FROM marts.base_gasto
+    FROM intermediario.base_gasto
     GROUP BY ano
 )
 SELECT

@@ -19,22 +19,19 @@
 
 CREATE OR REPLACE TABLE marts.gasto_por_fornecedor AS
 WITH base AS (
-    SELECT CAST(ano AS VARCHAR) AS periodo, documento_fornecedor, tipo_documento_fornecedor,
+    SELECT CAST(ano AS VARCHAR) AS periodo, identificador_fornecedor, tipo_documento_fornecedor,
            fornecedor_nome, tipo_despesa, eh_lancamento_interno, valor_liquido
-    FROM marts.base_gasto
+    FROM intermediario.base_gasto
     UNION ALL
-    SELECT 'TOTAL' AS periodo, documento_fornecedor, tipo_documento_fornecedor,
+    SELECT 'TOTAL' AS periodo, identificador_fornecedor, tipo_documento_fornecedor,
            fornecedor_nome, tipo_despesa, eh_lancamento_interno, valor_liquido
-    FROM marts.base_gasto
+    FROM intermediario.base_gasto
 ),
 identificado AS (
     SELECT
         periodo,
         tipo_documento_fornecedor,
-        CASE
-            WHEN tipo_documento_fornecedor = 'CNPJ' THEN documento_fornecedor
-            ELSE 'ID-' || left(documento_fornecedor, 8)
-        END AS identificador,
+        identificador_fornecedor AS identificador,
         fornecedor_nome,
         tipo_despesa,
         eh_lancamento_interno,

@@ -17,13 +17,13 @@
 
 CREATE OR REPLACE TABLE marts.crescimento_categorias AS
 WITH base_categoria AS (
-    SELECT tipo_despesa, ano, valor_liquido FROM marts.base_gasto
+    SELECT tipo_despesa, ano, valor_liquido FROM intermediario.base_gasto
 ),
 -- Agregado da família passagem aérea (SIGEPA + RPA + missão oficial). É uma linha extra:
 -- não entra na soma das categorias individuais (eh_agregado = TRUE).
 base_familia AS (
     SELECT 'FAMILIA PASSAGEM AEREA (SIGEPA + RPA + MISSAO OFICIAL)' AS tipo_despesa, ano, valor_liquido
-    FROM marts.base_gasto
+    FROM intermediario.base_gasto
     WHERE tipo_despesa IN ('PASSAGEM AÉREA - SIGEPA', 'PASSAGEM AÉREA - RPA', 'PASSAGEM AÉREA - MISSÃO OFICIAL')
 ),
 por_ano AS (

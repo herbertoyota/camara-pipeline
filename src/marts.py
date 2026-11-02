@@ -49,8 +49,8 @@ def _soma(con: duckdb.DuckDBPyConnection, sql: str) -> float:
 
 def _conferir(con: duckdb.DuckDBPyConnection) -> None:
     """Falha se algum mart não somar o mesmo gasto que a base."""
-    base = _soma(con, "SELECT sum(valor_liquido) FROM marts.base_gasto")
-    base_linhas = _soma(con, "SELECT count(*) FROM marts.base_gasto")
+    base = _soma(con, "SELECT sum(valor_liquido) FROM intermediario.base_gasto")
+    base_linhas = _soma(con, "SELECT count(*) FROM intermediario.base_gasto")
     checagens = {
         "gasto_por_partido_ano": "SELECT sum(valor_liquido_total) FROM marts.gasto_por_partido_ano",
         "gasto_por_uf_ano": "SELECT sum(valor_liquido_total) FROM marts.gasto_por_uf_ano",
@@ -69,10 +69,10 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
             raise RuntimeError(f"{mart} não tem o número de linhas da base")
 
     # Identificador de pessoa física é um prefixo do hash: dois CPFs não podem colidir nele.
-    if _soma(con, "SELECT count(DISTINCT documento_fornecedor) - count(DISTINCT CASE WHEN tipo_documento_fornecedor = 'CNPJ' THEN documento_fornecedor ELSE 'ID-' || left(documento_fornecedor, 8) END) FROM marts.base_gasto") != 0:
+    if _soma(con, "SELECT count(DISTINCT documento_fornecedor) - count(DISTINCT CASE WHEN tipo_documento_fornecedor = 'CNPJ' THEN documento_fornecedor ELSE 'ID-' || left(documento_fornecedor, 8) END) FROM refined.despesas_deputado") != 0:
         raise RuntimeError("colisão de identificador de fornecedor pessoa física")
     # Fornecedor sem documento quebraria o ranking e a concentração.
-    if _soma(con, "SELECT count(*) FROM marts.base_gasto WHERE documento_fornecedor IS NULL") != 0:
+    if _soma(con, "SELECT count(*) FROM refined.despesas_deputado WHERE documento_fornecedor IS NULL") != 0:
         raise RuntimeError("há despesas sem documento de fornecedor")
 
     # Concentração: externo + lançamento interno = gasto da base em cada período.
@@ -82,7 +82,7 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
         if periodo == "TOTAL":
             esperado = base
         else:
-            esperado = _soma(con, f"SELECT sum(valor_liquido) FROM marts.base_gasto WHERE ano = {int(periodo)}")
+            esperado = _soma(con, f"SELECT sum(valor_liquido) FROM intermediario.base_gasto WHERE ano = {int(periodo)}")
         if abs(float(externo) + float(interno) - esperado) > 0.005:
             raise RuntimeError(f"concentracao_fornecedores {periodo} não soma o gasto da base")
 
@@ -109,7 +109,7 @@ def _conferir(con: duckdb.DuckDBPyConnection) -> None:
             raise RuntimeError(f"top_raizes {periodo} tem {n} linhas, esperado {min(10, raizes)}")
 
     # O mart por deputado cobre só deputados (sem liderança).
-    gasto_deputados = _soma(con, "SELECT sum(valor_liquido) FROM marts.base_gasto WHERE NOT eh_lideranca")
+    gasto_deputados = _soma(con, "SELECT sum(valor_liquido) FROM intermediario.base_gasto WHERE NOT eh_lideranca")
     if abs(_soma(con, "SELECT sum(valor_liquido_total) FROM marts.gasto_por_deputado_ano") - gasto_deputados) > 0.005:
         raise RuntimeError("gasto_por_deputado_ano não soma o gasto de deputados")
 

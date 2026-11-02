@@ -16,5 +16,5 @@ SELECT
     count(DISTINCT id_deputado)                                 AS deputados_com_despesa,
     ROUND(COALESCE(sum(valor_liquido) / NULLIF(count(DISTINCT id_deputado), 0), NULL), 2)
                                                                 AS gasto_medio_por_deputado
-FROM marts.base_gasto
+FROM intermediario.base_gasto
 GROUP BY ano, mes, partido;

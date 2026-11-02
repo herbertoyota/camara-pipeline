@@ -30,7 +30,7 @@ WITH positivas AS (
     SELECT
         b.id_deputado,
         dep.nome_parlamentar,
-        b.documento_fornecedor,
+        b.identificador_fornecedor,
         b.tipo_documento_fornecedor,
         b.tipo_despesa,
         b.ano,
@@ -38,7 +38,7 @@ WITH positivas AS (
         b.data_emissao,
         b.id_documento,
         b.valor_liquido
-    FROM marts.base_gasto b
+    FROM intermediario.base_gasto b
     LEFT JOIN refined.deputados dep ON dep.id_deputado = b.id_deputado
     WHERE NOT b.eh_lideranca AND b.id_deputado IS NOT NULL AND b.valor_liquido > 0
 ),
@@ -55,32 +55,29 @@ estatistica_categoria AS (
 documentos_do_dia AS (
     SELECT
         id_deputado,
-        documento_fornecedor,
+        identificador_fornecedor,
         data_emissao,
         count(DISTINCT id_documento) AS documentos
     FROM positivas
     WHERE id_documento IS NOT NULL AND data_emissao IS NOT NULL
-    GROUP BY id_deputado, documento_fornecedor, data_emissao
+    GROUP BY id_deputado, identificador_fornecedor, data_emissao
 ),
 documentos_do_dia_valor AS (
     SELECT
         id_deputado,
-        documento_fornecedor,
+        identificador_fornecedor,
         data_emissao,
         valor_liquido,
         count(DISTINCT id_documento) AS documentos
     FROM positivas
     WHERE id_documento IS NOT NULL AND data_emissao IS NOT NULL
-    GROUP BY id_deputado, documento_fornecedor, data_emissao, valor_liquido
+    GROUP BY id_deputado, identificador_fornecedor, data_emissao, valor_liquido
 ),
 com_indicadores AS (
     SELECT
         p.id_deputado,
         p.nome_parlamentar,
-        CASE
-            WHEN p.tipo_documento_fornecedor = 'CNPJ' THEN p.documento_fornecedor
-            ELSE 'ID-' || left(p.documento_fornecedor, 8)
-        END                                                             AS identificador_fornecedor,
+        p.identificador_fornecedor,
         p.tipo_despesa,
         p.ano,
         p.mes,
@@ -99,14 +96,14 @@ com_indicadores AS (
     FROM positivas p
     LEFT JOIN documentos_do_dia_valor gv
         ON gv.id_deputado = p.id_deputado
-       AND gv.documento_fornecedor = p.documento_fornecedor
+       AND gv.identificador_fornecedor = p.identificador_fornecedor
        AND gv.data_emissao = p.data_emissao
        AND gv.valor_liquido = p.valor_liquido
     LEFT JOIN estatistica_categoria e
         ON e.tipo_despesa = p.tipo_despesa AND e.ano = p.ano
     LEFT JOIN documentos_do_dia g
         ON g.id_deputado = p.id_deputado
-       AND g.documento_fornecedor = p.documento_fornecedor
+       AND g.identificador_fornecedor = p.identificador_fornecedor
        AND g.data_emissao = p.data_emissao
 )
 SELECT

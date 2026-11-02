@@ -1,4 +1,9 @@
--- marts.base_gasto: base única dos marts de gasto. Uma linha por despesa.
+-- intermediario.base_gasto: base interna dos marts de gasto. Uma linha por despesa.
+--
+-- Fica fora do schema marts de propósito: é intermediária, e carrega id_documento
+-- (número do documento, usado só para contar documentos distintos nos indicadores).
+-- Nenhum mart expõe essa coluna. O hash completo do CPF não entra aqui: o fornecedor
+-- entra só como identificador_fornecedor (CNPJ, ou 'ID-' + 8 caracteres do hash).
 --
 -- Métrica aprovada: gasto = SUM(valor_liquido). Estornos (valor negativo) abatem.
 -- As linhas de convenção de sinal e as divergentes ENTRAM no padrão; as colunas
@@ -12,7 +17,9 @@
 -- Liderança (eh_lideranca): não tem id de deputado (fica fora das análises por
 -- deputado) e entra nas análises por partido como 'LIDERANCA'. A UF da liderança é 'NA'.
 
-CREATE OR REPLACE VIEW marts.base_gasto AS
+CREATE SCHEMA IF NOT EXISTS intermediario;
+
+CREATE OR REPLACE VIEW intermediario.base_gasto AS
 SELECT
     d.ano_arquivo                                                        AS ano,
     d.mes                                                                AS mes,
@@ -20,7 +27,10 @@ SELECT
     d.eh_lideranca                                                       AS eh_lideranca,
     COALESCE(d.sigla_partido, CASE WHEN d.eh_lideranca THEN 'LIDERANCA' END) AS partido,
     d.sigla_uf                                                           AS uf,
-    d.documento_fornecedor                                               AS documento_fornecedor,
+    CASE
+        WHEN d.tipo_documento_fornecedor = 'CNPJ' THEN d.documento_fornecedor
+        ELSE 'ID-' || left(d.documento_fornecedor, 8)
+    END                                                                  AS identificador_fornecedor,
     d.tipo_documento_fornecedor                                          AS tipo_documento_fornecedor,
     d.fornecedor_nome                                                    AS fornecedor_nome,
     d.tipo_despesa                                                       AS tipo_despesa,
