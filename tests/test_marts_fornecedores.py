@@ -44,7 +44,8 @@ def con():
         ano_arquivo INTEGER, mes INTEGER, id_deputado INTEGER, eh_lideranca BOOLEAN,
         sigla_partido VARCHAR, sigla_uf VARCHAR, documento_fornecedor VARCHAR,
         tipo_documento_fornecedor VARCHAR, fornecedor_nome VARCHAR, tipo_despesa VARCHAR, valor_documento DECIMAL(18,2),
-        valor_glosa DECIMAL(18,2), valor_liquido DECIMAL(18,2), liquido_diverge BOOLEAN)""")
+        valor_glosa DECIMAL(18,2), valor_liquido DECIMAL(18,2), liquido_diverge BOOLEAN,
+        data_emissao DATE, id_documento BIGINT)""")
     c.execute("CREATE TABLE refined.deputados (id_deputado INTEGER, nome_parlamentar VARCHAR, uf_atual VARCHAR)")
     c.execute("CREATE TABLE refined.votos (id_votacao VARCHAR, id_deputado INTEGER, tipo_voto VARCHAR, data_votacao DATE, sigla_orgao VARCHAR)")
     c.execute("INSERT INTO refined.deputados VALUES (1, 'Dep Um', 'SP')")

@@ -7,7 +7,7 @@
 --   - campo vazio ('' no raw) vira NULL;
 --   - valores e datas convertidos com TRY_CAST: falha vira NULL, e src/clean.py
 --     confere que nenhum valor não-vazio virou NULL;
---   - nada é descartado: estornos, datas suspeitas e divergências viram booleanos;
+--   - nada é descartado: estornos, datas fora da faixa e divergências viram booleanos;
 --   - CPF de fornecedor vira hash SHA-256 salgado; CNPJ fica em claro;
 --   - fornecedor pessoa física (CPF) tem o nome trocado pelo rótulo PESSOA FISICA;
 --   - não entram: cpf do deputado e txtPassageiro (só o booleano tem_passageiro).
@@ -116,7 +116,7 @@ SELECT
     id_documento,
     data_emissao,
     -- Sinaliza, não descarta: antes de 2015 ou data futura.
-    COALESCE(year(data_emissao) < 2015 OR data_emissao > CURRENT_DATE, FALSE) AS data_emissao_suspeita,
+    COALESCE(year(data_emissao) < 2015 OR data_emissao > CURRENT_DATE, FALSE) AS data_emissao_fora_da_faixa,
     num_parcela,
     valor_documento,
     valor_glosa,
@@ -129,7 +129,7 @@ SELECT
     num_ressarcimento,
     data_pagamento_restituicao,
     COALESCE(year(data_pagamento_restituicao) < 2015 OR data_pagamento_restituicao > CURRENT_DATE, FALSE)
-        AS data_pagamento_suspeita,
+        AS data_pagamento_fora_da_faixa,
     valor_restituicao,
     trecho,
     url_documento,

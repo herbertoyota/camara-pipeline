@@ -102,7 +102,7 @@ def test_data_valida_e_vazia(con):
     inserir(con, txtNumero="vazia", datEmissao="")
     refinar(con)
     assert linha(con, "ok")["data_emissao"] == date(2024, 2, 18)
-    assert linha(con, "ok")["data_emissao_suspeita"] is False
+    assert linha(con, "ok")["data_emissao_fora_da_faixa"] is False
     assert linha(con, "vazia")["data_emissao"] is None
 
 
@@ -116,8 +116,8 @@ def test_data_fora_da_faixa_e_sinalizada_sem_descartar(con):
     inserir(con, txtNumero="antiga", datEmissao="1999-01-01T00:00:00")
     inserir(con, txtNumero="futura", datEmissao="2099-01-01T00:00:00")
     refinar(con)
-    assert linha(con, "antiga")["data_emissao_suspeita"] is True
-    assert linha(con, "futura")["data_emissao_suspeita"] is True
+    assert linha(con, "antiga")["data_emissao_fora_da_faixa"] is True
+    assert linha(con, "futura")["data_emissao_fora_da_faixa"] is True
 
 
 # --- fornecedor ------------------------------------------------------------

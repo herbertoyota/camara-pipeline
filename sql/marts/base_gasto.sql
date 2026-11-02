@@ -24,6 +24,8 @@ SELECT
     d.tipo_documento_fornecedor                                          AS tipo_documento_fornecedor,
     d.fornecedor_nome                                                    AS fornecedor_nome,
     d.tipo_despesa                                                       AS tipo_despesa,
+    d.data_emissao                                                       AS data_emissao,
+    d.id_documento                                                       AS id_documento,
     d.valor_liquido                                                      AS valor_liquido,
     COALESCE(d.valor_glosa IS NULL AND d.valor_liquido = -d.valor_documento, FALSE)
                                                                          AS eh_convencao_sinal,

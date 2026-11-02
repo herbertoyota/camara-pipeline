@@ -92,8 +92,8 @@ def construir_refined(con: duckdb.DuckDBPyConnection, salt: str) -> dict:
             ).fetchall()
         ),
         "perdidas_na_conversao": perdidas,
-        "datas_suspeitas": con.execute(
-            "SELECT count(*) FROM refined.despesas WHERE data_emissao_suspeita"
+        "datas_fora_da_faixa": con.execute(
+            "SELECT count(*) FROM refined.despesas WHERE data_emissao_fora_da_faixa"
         ).fetchone()[0],
         "estornos": con.execute("SELECT count(*) FROM refined.despesas WHERE eh_estorno").fetchone()[0],
         "liquido_diverge": con.execute(
