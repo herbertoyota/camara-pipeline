@@ -252,9 +252,26 @@ Os três anos têm os 12 meses com despesa, então **2023 não é exercício par
 - `marts.comparacao_top10_cnpj_raiz`: os dois rankings lado a lado. Cada linha mostra a posição do grupo no outro critério, para ver quem muda de posição.
 - `marts.concentracao_fornecedores`: participação do top 10 (por CNPJ e por raiz), e o índice **HHI** (soma dos quadrados das participações em %, escala 0 a 10.000), também por CNPJ e por raiz.
 
-**Lançamento interno da Câmara.** O CNPJ `00530352000159` é o da própria Câmara dos Deputados (informação do rodapé do portal de dados abertos). Ele recebe as linhas de convenção de sinal, com valores negativos. Essas linhas **ficam no gasto total** (a soma do ano continua fechando), mas o CNPJ **sai do ranking e da concentração**: a participação do top 10 é sobre o gasto de fornecedores externos. O valor aparece à parte em `valor_lancamento_interno`.
+**Lançamento interno (a confirmar).** O CNPJ `00530352000159` é tratado como lançamento interno. A identificação se apoia em duas evidências da fonte, **ainda não confirmadas no rodapé do portal de dados abertos (a confirmar)**:
+- o nome registrado: 2.440 das suas 2.447 linhas são de convenção de sinal, com o nome "COMPLEMENTAÇÃO DO AUXÍLIO-MORADIA" (uma delas sem nome);
+- 7 linhas que não são de convenção: "PASSAGEM AÉREA - REEMBOLSO", com os nomes "CAMARA DOS DEPUTADOS" (1) e "LATAM" (6).
 
-**Raiz `00000000`.** Os CNPJs que começam com oito zeros (ex.: `00000000000001` "CELULAR FUNCIONAL", `00000000000006` "RAMAL") não são empresas: são documentos genéricos, e reúnem entidades diferentes. Por isso, cada um deles é tratado como a própria raiz, sem ser somado com os outros. Essa é uma escolha a revisar.
+Ou seja, o critério não é só convenção de sinal: o CNPJ também recebe reembolsos de passagens. Por isso, a afirmação de que é o CNPJ da própria Câmara fica como **a confirmar**.
+
+Efeito da marcação: as linhas ficam no gasto total (a soma do ano continua fechando), mas o CNPJ sai do ranking e da concentração de fornecedores externos. O valor aparece à parte em `valor_lancamento_interno`. Quando a confirmação sair, basta trocar o critério em `sql/marts/base_gasto.sql`.
+
+**Documentos genéricos (raiz `00000000`).** Os CNPJs que começam com oito zeros (ex.: `00000000000001` "CELULAR FUNCIONAL", `00000000000006` "RAMAL", `00000000000010` Adobe) não são empresas: são documentos genéricos, e reúnem entidades diferentes. **Critério:** cada um é tratado como a própria raiz, sem ser somado com os outros, e é marcado com `eh_documento_generico = TRUE` nos marts de fornecedor. Eles **continuam como fornecedores externos** (dentro do gasto externo, do ranking e da concentração). O critério pode ser revisto.
+
+Valor desses documentos genéricos, por ano:
+
+| Período | Documentos | Valor (R$) | % do gasto externo |
+|---|---|---|---|
+| 2023 | 5 | 1.580.713 | 0,64% |
+| 2024 | 4 | 1.695.569 | 0,67% |
+| 2025 | 5 | 1.397.660 | 0,58% |
+| TOTAL | 6 | 4.673.943 | 0,63% |
+
+Nenhum deles está no top 10 por CNPJ, em nenhum período.
 
 **Concentração de fornecedores externos (sem o lançamento interno):**
 
