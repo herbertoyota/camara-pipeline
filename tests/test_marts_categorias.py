@@ -82,3 +82,18 @@ def test_base_negativa_nao_gera_percentual(con):
     assert r["base_nao_positiva"] is True
     assert r["var_pct_2023_2025"] is None and r["var_pct_2023_2024"] is None
     assert float(r["var_abs_2023_2025"]) == 10.0  # absoluto continua valendo: -40 - (-50)
+
+
+def test_familia_passagem_aerea_soma_as_tres_categorias_e_fica_marcada(con):
+    inserir(con, [
+        (2023, "PASSAGEM AÉREA - SIGEPA", 100), (2025, "PASSAGEM AÉREA - SIGEPA", 50),
+        (2024, "PASSAGEM AÉREA - RPA", 10),
+        (2025, "PASSAGEM AÉREA - MISSÃO OFICIAL", -5),
+        (2023, "PASSAGEM AÉREA - REEMBOLSO", 999),  # fora da família
+    ])
+    construir_marts(con)
+    fam = cat(con, "FAMILIA PASSAGEM AEREA (SIGEPA + RPA + MISSAO OFICIAL)")
+    assert fam["eh_agregado"] is True
+    assert float(fam["valor_2023"]) == 100.0 and float(fam["valor_2025"]) == 45.0  # 50 - 5
+    assert float(fam["var_pct_2023_2025"]) == pytest.approx(-55.0)
+    assert cat(con, "PASSAGEM AÉREA - SIGEPA")["eh_agregado"] is False
