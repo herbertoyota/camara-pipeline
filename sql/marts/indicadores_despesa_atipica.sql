@@ -1,6 +1,6 @@
 -- marts.indicadores_despesa_atipica: indicadores de atipicidade por linha de despesa.
 --
--- ATENÇÃO: os indicadores NÃO são evidência de irregularidade. Cada um sinaliza uma característica
+-- ATENÇÃO: os indicadores NÃO são evidência de desvio de conduta. Cada um sinaliza uma característica
 -- estatística ou de calendário que pode ter explicações legítimas (ver README, seção "Indicadores
 -- de atipicidade"). Uso: priorizar leitura humana, não concluir nada sobre uma despesa.
 --
