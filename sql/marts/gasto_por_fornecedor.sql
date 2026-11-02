@@ -8,6 +8,8 @@
 --   '00000000' (documentos genéricos, não empresas) usam o próprio identificador.
 -- fornecedor_nome: o nome mais frequente do documento. Pessoa física sai como
 -- 'PESSOA FISICA' e nome ocultado como 'NOME OCULTADO'.
+-- tipo_despesa_predominante: a categoria mais frequente do documento.
+-- Empate na contagem (nome ou categoria): ordem alfabética (critério total).
 -- eh_lancamento_interno: identificado pelo nome na fonte e pelas linhas que recebe (a confirmar
 --   no rodapé do portal). Fica no gasto total; o ranking e a concentração de externos o excluem.
 -- eh_documento_generico: CNPJ de raiz 00000000 (documento genérico, não empresa). Continua como
@@ -38,25 +40,58 @@ identificado AS (
         eh_lancamento_interno,
         valor_liquido
     FROM base
+),
+contagem_nome AS (
+    SELECT periodo, tipo_documento_fornecedor, identificador, fornecedor_nome, count(*) AS n
+    FROM identificado WHERE fornecedor_nome IS NOT NULL
+    GROUP BY periodo, tipo_documento_fornecedor, identificador, fornecedor_nome
+),
+contagem_despesa AS (
+    SELECT periodo, tipo_documento_fornecedor, identificador, tipo_despesa, count(*) AS n
+    FROM identificado WHERE tipo_despesa IS NOT NULL
+    GROUP BY periodo, tipo_documento_fornecedor, identificador, tipo_despesa
+),
+nome_principal AS (
+    SELECT periodo, tipo_documento_fornecedor, identificador,
+           arg_min(fornecedor_nome, (-n, fornecedor_nome)) AS fornecedor_nome
+    FROM contagem_nome GROUP BY periodo, tipo_documento_fornecedor, identificador
+),
+despesa_predominante AS (
+    SELECT periodo, tipo_documento_fornecedor, identificador,
+           arg_min(tipo_despesa, (-n, tipo_despesa)) AS tipo_despesa
+    FROM contagem_despesa GROUP BY periodo, tipo_documento_fornecedor, identificador
+),
+agregado AS (
+    SELECT
+        periodo,
+        tipo_documento_fornecedor,
+        identificador,
+        bool_or(eh_lancamento_interno)                              AS eh_lancamento_interno,
+        bool_or(tipo_documento_fornecedor = 'CNPJ' AND left(identificador, 8) = '00000000')
+                                                                    AS eh_documento_generico,
+        sum(valor_liquido)                                          AS valor_liquido_total,
+        count(*)                                                    AS linhas
+    FROM identificado
+    GROUP BY periodo, tipo_documento_fornecedor, identificador
 )
 -- O documento completo não sai no mart: nem o CPF, nem o hash inteiro.
 SELECT
-    periodo,
-    tipo_documento_fornecedor,
-    identificador,
+    a.periodo,
+    a.tipo_documento_fornecedor,
+    a.identificador,
     -- Raiz '00000000' não é uma empresa: são documentos genéricos (linhas de telefonia e
     -- serviços sem CNPJ próprio). Esses documentos não se agrupam: cada um é a própria raiz.
     CASE
-        WHEN tipo_documento_fornecedor = 'CNPJ' AND left(identificador, 8) <> '00000000'
-            THEN left(identificador, 8)
-        ELSE identificador
+        WHEN a.tipo_documento_fornecedor = 'CNPJ' AND left(a.identificador, 8) <> '00000000'
+            THEN left(a.identificador, 8)
+        ELSE a.identificador
     END                                                         AS raiz,
-    mode(fornecedor_nome)                                       AS fornecedor_nome,
-    mode(tipo_despesa)                                          AS tipo_despesa_predominante,
-    bool_or(eh_lancamento_interno)                              AS eh_lancamento_interno,
-    bool_or(tipo_documento_fornecedor = 'CNPJ' AND left(identificador, 8) = '00000000')
-                                                                AS eh_documento_generico,
-    sum(valor_liquido)                                          AS valor_liquido_total,
-    count(*)                                                    AS linhas
-FROM identificado
-GROUP BY periodo, tipo_documento_fornecedor, identificador;
+    n.fornecedor_nome,
+    d.tipo_despesa                                              AS tipo_despesa_predominante,
+    a.eh_lancamento_interno,
+    a.eh_documento_generico,
+    a.valor_liquido_total,
+    a.linhas
+FROM agregado a
+LEFT JOIN nome_principal n USING (periodo, tipo_documento_fornecedor, identificador)
+LEFT JOIN despesa_predominante d USING (periodo, tipo_documento_fornecedor, identificador);

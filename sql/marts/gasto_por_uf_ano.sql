@@ -13,7 +13,7 @@ SELECT
     COALESCE(sum(valor_liquido) FILTER (WHERE eh_convencao_sinal), 0) AS valor_convencao_sinal,
     count(*) FILTER (WHERE divergente_inexplicada)                     AS linhas_divergentes,
     count(DISTINCT id_deputado)                                 AS deputados_com_despesa,
-    COALESCE(sum(valor_liquido) / NULLIF(count(DISTINCT id_deputado), 0), NULL)
+    ROUND(COALESCE(sum(valor_liquido) / NULLIF(count(DISTINCT id_deputado), 0), NULL), 2)
                                                                 AS gasto_medio_por_deputado
 FROM marts.base_gasto
 GROUP BY ano, uf;

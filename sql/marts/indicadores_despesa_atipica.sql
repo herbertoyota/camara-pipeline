@@ -86,8 +86,8 @@ com_indicadores AS (
         p.mes,
         p.data_emissao,
         p.valor_liquido,
-        CASE WHEN e.linhas_positivas >= 100 AND e.mediana > 0
-             THEN p.valor_liquido / e.mediana END                       AS razao_sobre_mediana_categoria,
+        ROUND(CASE WHEN e.linhas_positivas >= 100 AND e.mediana > 0
+                   THEN p.valor_liquido / e.mediana END, 4)             AS razao_sobre_mediana_categoria,
         CASE WHEN e.linhas_positivas >= 100
              THEN p.valor_liquido > e.p99 END                           AS valor_acima_do_p99_da_categoria,
         CASE WHEN p.data_emissao IS NULL THEN NULL

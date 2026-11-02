@@ -75,15 +75,15 @@ SELECT
     COALESCE(np.votacoes_nominais_periodo, 0)                                AS votacoes_nominais_periodo,
     COALESCE(ex.votos_excluidos, 0)                                          AS votos_excluidos,
     COALESCE(np.votacoes_nominais_periodo, 0) - COALESCE(ex.votos_excluidos, 0) AS denominador,
-    CASE WHEN COALESCE(np.votacoes_nominais_periodo, 0) - COALESCE(ex.votos_excluidos, 0) > 0
-         THEN 100.0 * COALESCE(num.votos_registrados, 0)
-              / (COALESCE(np.votacoes_nominais_periodo, 0) - COALESCE(ex.votos_excluidos, 0))
-    END                                                                      AS participacao_pct,
+    ROUND(CASE WHEN COALESCE(np.votacoes_nominais_periodo, 0) - COALESCE(ex.votos_excluidos, 0) > 0
+               THEN 100.0 * COALESCE(num.votos_registrados, 0)
+                    / (COALESCE(np.votacoes_nominais_periodo, 0) - COALESCE(ex.votos_excluidos, 0))
+          END, 4)                                                            AS participacao_pct,
     (a17.id_deputado IS NOT NULL)                                            AS votou_artigo_17,
     COALESCE(nt.n, 0) - COALESCE(ext.n, 0)                                   AS denominador_todas,
-    CASE WHEN COALESCE(nt.n, 0) - COALESCE(ext.n, 0) > 0
-         THEN 100.0 * COALESCE(numt.n, 0) / (COALESCE(nt.n, 0) - COALESCE(ext.n, 0))
-    END                                                                      AS participacao_todas_pct
+    ROUND(CASE WHEN COALESCE(nt.n, 0) - COALESCE(ext.n, 0) > 0
+               THEN 100.0 * COALESCE(numt.n, 0) / (COALESCE(nt.n, 0) - COALESCE(ext.n, 0))
+          END, 4)                                                            AS participacao_todas_pct
 FROM janela j
 LEFT JOIN refined.deputados dep ON dep.id_deputado = j.id_deputado
 LEFT JOIN numerador num ON num.id_deputado = j.id_deputado

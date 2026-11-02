@@ -100,11 +100,11 @@ SELECT
     r.recorte,
     r.unidade,
     COALESCE(s.n, 0)         AS n,
-    s.spearman_rho,
-    CASE WHEN s.n > 3 AND abs(s.spearman_rho) < 0.9999999999
-         THEN tanh(atanh(s.spearman_rho) - 1.96 / sqrt(s.n - 3)) END AS ic95_inf,
-    CASE WHEN s.n > 3 AND abs(s.spearman_rho) < 0.9999999999
-         THEN tanh(atanh(s.spearman_rho) + 1.96 / sqrt(s.n - 3)) END AS ic95_sup
+    ROUND(s.spearman_rho, 4)                                    AS spearman_rho,
+    ROUND(CASE WHEN s.n > 3 AND abs(s.spearman_rho) < 0.9999999999
+               THEN tanh(atanh(s.spearman_rho) - 1.96 / sqrt(s.n - 3)) END, 4) AS ic95_inf,
+    ROUND(CASE WHEN s.n > 3 AND abs(s.spearman_rho) < 0.9999999999
+               THEN tanh(atanh(s.spearman_rho) + 1.96 / sqrt(s.n - 3)) END, 4) AS ic95_sup
 FROM (VALUES
     ('todos', 'deputado'),
     ('sem votou_artigo_17', 'deputado'),

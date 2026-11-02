@@ -159,7 +159,7 @@ def test_media_mensal_por_deputado_e_comparada_com_a_anual(con):
         "SELECT media_mensal_por_deputado, gasto_medio_por_deputado FROM marts.gasto_resumo_ano WHERE ano = 2024"
     ).fetchone()
     assert valor(media_anual) == 170.0
-    assert valor(media_mensal) == pytest.approx(170.0 / 3)
+    assert valor(media_mensal) == pytest.approx(170.0 / 3, abs=0.005)  # arredondado a 2 casas
 
 
 def test_partido_mes_conta_deputados_do_mes_e_lideranca_fica_nula(con):

@@ -63,10 +63,10 @@ SELECT
     t.fornecedores,
     COALESCE(l.valor, 0)                                               AS valor_lancamento_interno,
     sum(p.valor_liquido_total) FILTER (WHERE p.posicao <= 10)          AS valor_top10,
-    sum(p.part_pct) FILTER (WHERE p.posicao <= 10)                     AS participacao_top10_pct,
-    m.participacao_top10_raiz_pct,
-    sum(p.part_pct * p.part_pct) FILTER (WHERE p.valor_liquido_total > 0) AS hhi,
-    m.hhi_raiz,
+    ROUND(sum(p.part_pct) FILTER (WHERE p.posicao <= 10), 4)           AS participacao_top10_pct,
+    ROUND(m.participacao_top10_raiz_pct, 4)                            AS participacao_top10_raiz_pct,
+    ROUND(sum(p.part_pct * p.part_pct) FILTER (WHERE p.valor_liquido_total > 0), 4) AS hhi,
+    ROUND(m.hhi_raiz, 4)                                               AS hhi_raiz,
     count(*) FILTER (WHERE p.valor_liquido_total <= 0)                 AS fornecedores_excluidos_hhi,
     COALESCE(sum(p.valor_liquido_total) FILTER (WHERE p.valor_liquido_total <= 0), 0) AS valor_excluido_hhi
 FROM totais t

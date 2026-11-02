@@ -68,7 +68,7 @@ def test_artigo_17_fica_fora_do_numerador_e_do_denominador(con):
 def test_ausencia_conta_no_denominador_e_tipo_vazio_sai(con):
     registrados, denominador, pct, _ = part(con, 2)
     assert (registrados, denominador) == (2, 3)
-    assert float(pct) == pytest.approx(200.0 / 3)
+    assert float(pct) == pytest.approx(200.0 / 3, abs=5e-5)
 
 
 def test_votacao_de_comissao_nao_entra_no_denominador_de_plenario(con):

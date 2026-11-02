@@ -42,7 +42,7 @@ SELECT
     r.eh_documento_generico,
     r.valor_liquido_total,
     r.linhas,
-    100.0 * r.valor_liquido_total / t.gasto_total               AS participacao_pct
+    ROUND(100.0 * r.valor_liquido_total / t.gasto_total, 4)     AS participacao_pct
 FROM ranqueado r
 JOIN totais t ON t.periodo = r.periodo
 WHERE r.posicao <= 10

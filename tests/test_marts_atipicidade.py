@@ -83,7 +83,7 @@ def linha(con, dep, cat, valor=None, id_=None):
 def test_p99_e_mediana_com_valores_conhecidos(con):
     r100 = linha(con, 1, "CAT", 100)
     assert r100["valor_acima_do_p99_da_categoria"] is True
-    assert r100["razao_sobre_mediana_categoria"] == pytest.approx(100 / 50.5)
+    assert r100["razao_sobre_mediana_categoria"] == pytest.approx(100 / 50.5, abs=5e-5)
     assert linha(con, 1, "CAT", 99)["valor_acima_do_p99_da_categoria"] is False  # 99 < 99,01
     assert linha(con, 1, "CAT", 50)["valor_acima_do_p99_da_categoria"] is False
 

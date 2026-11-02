@@ -17,7 +17,7 @@ import pytest
 
 from src.marts import construir_marts
 
-HASH_PF = hashlib.sha256(b"sal-teste|44444444444").hexdigest()
+HASH_PF = hashlib.sha256(b"sal-teste|22222222222").hexdigest()
 
 
 def linha(**campos):
@@ -120,7 +120,7 @@ def test_participacao_do_top10_soma_a_concentracao(con):
     part = con.execute(
         "SELECT participacao_top10_pct FROM marts.concentracao_fornecedores WHERE periodo = '2024'"
     ).fetchone()[0]
-    assert float(soma_top) == pytest.approx(float(part))
+    assert float(soma_top) == pytest.approx(float(part), abs=1e-3)  # 10 parcelas arredondadas a 4 casas
 
 
 # --- concentração ---------------------------------------------------------

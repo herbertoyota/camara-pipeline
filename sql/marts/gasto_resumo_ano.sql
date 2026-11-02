@@ -21,7 +21,7 @@ WITH mensal AS (
     GROUP BY ano, mes
 ),
 media_mensal AS (
-    SELECT ano, avg(gasto_deputados_mes / deputados_mes) AS media_mensal_por_deputado
+    SELECT ano, ROUND(avg(gasto_deputados_mes / deputados_mes), 2) AS media_mensal_por_deputado
     FROM mensal
     GROUP BY ano
 ),
@@ -45,7 +45,7 @@ SELECT
     a.linhas_divergentes,
     a.deputados_com_despesa,
     a.valor_liquido_deputados,
-    a.valor_liquido_deputados / NULLIF(a.deputados_com_despesa, 0)  AS gasto_medio_por_deputado,
+    ROUND(a.valor_liquido_deputados / NULLIF(a.deputados_com_despesa, 0), 2) AS gasto_medio_por_deputado,
     m.media_mensal_por_deputado
 FROM anual a
 LEFT JOIN media_mensal m ON m.ano = a.ano

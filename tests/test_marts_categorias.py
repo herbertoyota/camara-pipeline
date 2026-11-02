@@ -60,7 +60,7 @@ def test_crescimento_absoluto_e_percentual(con):
     assert float(r["var_abs_2023_2025"]) == 100.0
     assert float(r["var_pct_2023_2025"]) == pytest.approx(100.0)
     assert float(r["var_pct_2023_2024"]) == pytest.approx(50.0)
-    assert float(r["var_pct_2024_2025"]) == pytest.approx(100.0 / 3, rel=1e-6)
+    assert float(r["var_pct_2024_2025"]) == pytest.approx(100.0 / 3, abs=5e-5)
     assert r["presente_em_todos_os_anos"] is True and r["anos_ausentes"] is None
 
 

@@ -66,7 +66,7 @@ def test_empate_no_gasto_segue_a_formula_com_postos_medios():
     ])
     n, r = rho(c, "todos")
     assert n == 4
-    assert r == pytest.approx(3 / math.sqrt(10), abs=1e-9)  # 0,9486833
+    assert r == pytest.approx(3 / math.sqrt(10), abs=5e-5)  # 0,9486833
 
 
 def test_deputado_com_menos_de_30_votacoes_fica_fora():
@@ -128,8 +128,8 @@ def test_intervalo_de_confianca_fisher_com_valor_conhecido():
     r = 3 / math.sqrt(10)
     z = 0.5 * math.log((1 + r) / (1 - r))  # atanh(r)
     inf, sup = ic(c, "todos")
-    assert inf == pytest.approx(math.tanh(z - 1.96), abs=1e-9)
-    assert sup == pytest.approx(math.tanh(z + 1.96), abs=1e-9)
+    assert inf == pytest.approx(math.tanh(z - 1.96), abs=5e-5)
+    assert sup == pytest.approx(math.tanh(z + 1.96), abs=5e-5)
     # Valores numéricos: z = atanh(0,9486833) = 1,818626; IC = tanh(z -/+ 1,96).
     assert inf == pytest.approx(-0.1406, abs=1e-4) and sup == pytest.approx(0.9990, abs=1e-4)
 
