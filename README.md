@@ -243,7 +243,7 @@ As unidades (dias de sessão contra votações nominais) e o período não coinc
 ### O que a métrica mede (e o que não mede)
 
 A métrica é **participação em votações nominais de plenário**. **Não é presença.** Presença em sessão e voto nominal são coisas diferentes:
-- Quem preside sessões (a Mesa) registra presença, mas tende a votar pouco. A hipótese é que os votos de presidência aparecem como "Artigo 17" (excluídos), mas a documentação oficial não confirma isso. Por isso, Arthur Lira (13,7%) e Hugo Motta (43,6%) ficam com participação baixa, mesmo estando no plenário em muitas sessões.
+- Hipótese: quem preside a Câmara (a Mesa) vota pouco nas votações nominais, e isso ajudaria a explicar a participação baixa de Arthur Lira (13,7%) e Hugo Motta (43,6%). Esta hipótese não é testada aqui, e a documentação oficial não confirma que os votos de presidência aparecem como "Artigo 17".
 - Um deputado pode estar presente numa sessão e não ter voto registrado em nenhuma das votações nominais dessa sessão.
 
 **Checagem interna de coerência.** A mediana de votos por votação de plenário é 409, e a Câmara tem 513 cadeiras. Isso dá cerca de 80% de votantes por votação, coerente com a mediana de participação de 80,3%.
@@ -259,18 +259,23 @@ A métrica é **participação em votações nominais de plenário**. **Não é 
 - **Entram:** deputados com pelo menos 30 votações elegíveis de plenário (618 deputados). **Ficam de fora:** lideranças (não têm id de deputado) e deputados sem voto de plenário.
 - **Método:** Spearman por postos, com postos médios nos empates. É a correlação de Pearson entre os postos, que é a definição com empates.
 
-| Recorte | n | rho de Spearman |
-|---|---|---|
-| Todos | 618 | 0,128 |
-| Sem deputados que votaram Artigo 17 | 579 | 0,138 |
-| Norte | 80 | 0,031 |
-| Nordeste | 186 | 0,173 |
-| Centro-Oeste | 51 | −0,029 |
-| Sudeste | 210 | 0,204 |
-| Sul | 91 | 0,103 |
-| Referência: pares deputado-mês (n inflado) | 18.523 | 0,050 |
+| Recorte | n | rho de Spearman | IC 95% (Fisher) |
+|---|---|---|---|
+| Todos | 618 | 0,127 | [0,049; 0,204] |
+| Sem deputados que votaram Artigo 17 | 579 | 0,138 | [0,058; 0,217] |
+| Norte | 80 | 0,031 | [−0,190; 0,249] |
+| Nordeste | 186 | 0,173 | [0,030; 0,309] |
+| Centro-Oeste | 51 | −0,029 | [−0,302; 0,249] |
+| Sudeste | 210 | 0,204 | [0,071; 0,330] |
+| Sul | 91 | 0,103 | [−0,105; 0,303] |
+| Referência: pares deputado-mês (n inflado, IC não válido) | 18.523 | 0,050 | [0,036; 0,064] |
 
-Leitura: a associação é **fraca** em todos os recortes. A maior é no Sudeste (0,20) e a menor, no Centro-Oeste, que é negativa e pequena (n = 51). Com n = 618, um rho de 0,13 não é zero por acaso, mas o tamanho do efeito é pequeno. Os recortes regionais têm n menor e intervalos mais largos.
+**Como ler.** O intervalo de confiança de 95% é calculado pela transformação de Fisher: erro = 1/√(n−3), e o intervalo é tanh(atanh(rho) ± 1,96 × erro). O intervalo mostra a faixa de valores de rho compatíveis com os dados.
+
+- **Associação fraca.** Todos os recortes têm rho entre −0,03 e 0,20. Mesmo onde o intervalo não inclui zero (todos, sem Artigo 17, Nordeste e Sudeste), o rho é pequeno: quem gasta mais tende a ter participação um pouco maior, mas a relação explica muito pouco da variação.
+- **Os recortes regionais não se distinguem entre si.** Os intervalos de todas as regiões se sobrepõem uns aos outros. Sobreposição não é um teste formal de diferença, mas os dados não permitem afirmar que uma região tem associação diferente da outra.
+- **Quase nenhuma relação é uma resposta válida.** Com estes dados, a resposta honesta para "gasto e participação estão relacionados?" é: há uma associação positiva pequena, que não se sustenta como efeito de nenhum lado, e que pode ser explicada por fatores que não estão no modelo (cargo, partido, região do mandato, tempo de mandato).
+- **Pares deputado-mês:** o intervalo dessa linha não é válido, porque os pares dependem uns dos outros (cada deputado aparece em vários meses). Ela é só uma referência.
 
 **Limitações da correlação:**
 - **Proxy de exercício:** a janela vai do primeiro ao último voto de plenário. Para a maioria, cobre quase todo o período (ver a seção de participação).
