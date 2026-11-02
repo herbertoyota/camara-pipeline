@@ -109,3 +109,33 @@ def test_rho_com_menos_de_tres_pontos_e_nulo_e_nao_nan():
     c = montar([(1, "SP", 10.0, 100, False, 100, None)])
     assert rho(c, "macro: Sudeste") == (1, None)
     assert rho(c, "todos") == (1, None)
+
+
+def ic(c, recorte):
+    return c.execute("SELECT ic95_inf, ic95_sup FROM marts.correlacao_gasto_participacao WHERE recorte = ?",
+                     [recorte]).fetchone()
+
+
+def test_intervalo_de_confianca_fisher_com_valor_conhecido():
+    # Caso do empate: n = 4, rho = 3/sqrt(10). Erro = 1/sqrt(n-3) = 1.
+    # Valor de referência: z = atanh(rho) = 1,818626; IC 95% = (-0,1406; 0,9990).
+    c = montar([
+        (1, "SP", 10.0, 100, False, 100, None),
+        (2, "SP", 20.0, 100, False, 100, None),
+        (3, "SP", 30.0, 100, False, 200, None),
+        (4, "SP", 40.0, 100, False, 300, None),
+    ])
+    r = 3 / math.sqrt(10)
+    z = 0.5 * math.log((1 + r) / (1 - r))  # atanh(r)
+    inf, sup = ic(c, "todos")
+    assert inf == pytest.approx(math.tanh(z - 1.96), abs=1e-9)
+    assert sup == pytest.approx(math.tanh(z + 1.96), abs=1e-9)
+    # Valores numéricos: z = atanh(0,9486833) = 1,818626; IC = tanh(z -/+ 1,96).
+    assert inf == pytest.approx(-0.1406, abs=1e-4) and sup == pytest.approx(0.9990, abs=1e-4)
+
+
+def test_intervalo_nulo_com_n_3_ou_rho_igual_a_1():
+    c3 = montar([(i, "SP", 10.0 * i, 100, False, 100 * i, None) for i in range(1, 4)])
+    assert ic(c3, "todos") == (None, None)  # n = 3: erro indefinido
+    c5 = montar([(i, "SP", 10.0 * i, 100, False, 100 * i, None) for i in range(1, 6)])
+    assert ic(c5, "todos") == (None, None)  # rho = 1: atanh indefinido

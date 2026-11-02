@@ -94,11 +94,17 @@ resumo AS (
     FROM postos
     GROUP BY recorte, unidade
 )
+-- Intervalo de confiança de 95% por transformação de Fisher: z = atanh(rho), erro = 1/sqrt(n-3),
+-- IC = tanh(z +/- 1,96 x erro). Exige n > 3 e |rho| < 1; caso contrário, NULL.
 SELECT
     r.recorte,
     r.unidade,
     COALESCE(s.n, 0)         AS n,
-    s.spearman_rho
+    s.spearman_rho,
+    CASE WHEN s.n > 3 AND abs(s.spearman_rho) < 0.9999999999
+         THEN tanh(atanh(s.spearman_rho) - 1.96 / sqrt(s.n - 3)) END AS ic95_inf,
+    CASE WHEN s.n > 3 AND abs(s.spearman_rho) < 0.9999999999
+         THEN tanh(atanh(s.spearman_rho) + 1.96 / sqrt(s.n - 3)) END AS ic95_sup
 FROM (VALUES
     ('todos', 'deputado'),
     ('sem votou_artigo_17', 'deputado'),
