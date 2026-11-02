@@ -34,7 +34,7 @@ def con():
               "idLegislaturaFinal VARCHAR, nomeCivil VARCHAR, cpf VARCHAR, dataNascimento VARCHAR, "
               "municipioNascimento VARCHAR)")
     for ano in (2023, 2024, 2025):
-        c.execute(f"CREATE TABLE raw.votacoes_{ano} (id VARCHAR, \"data\" VARCHAR)")
+        c.execute(f"CREATE TABLE raw.votacoes_{ano} (id VARCHAR, \"data\" VARCHAR, siglaOrgao VARCHAR)")
         c.execute(f"CREATE TABLE raw.votacoes_votos_{ano} (idVotacao VARCHAR, deputado_id VARCHAR, "
                   "deputado_nome VARCHAR, deputado_siglaPartido VARCHAR, deputado_siglaUf VARCHAR, "
                   "dataHoraVoto VARCHAR, voto VARCHAR)")

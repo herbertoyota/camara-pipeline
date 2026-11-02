@@ -46,7 +46,7 @@ def con():
         tipo_documento_fornecedor VARCHAR, fornecedor_nome VARCHAR, tipo_despesa VARCHAR, valor_documento DECIMAL(18,2),
         valor_glosa DECIMAL(18,2), valor_liquido DECIMAL(18,2), liquido_diverge BOOLEAN)""")
     c.execute("CREATE TABLE refined.deputados (id_deputado INTEGER, nome_parlamentar VARCHAR)")
-    c.execute("CREATE TABLE refined.votos (id_votacao VARCHAR, id_deputado INTEGER, tipo_voto VARCHAR, data_votacao DATE)")
+    c.execute("CREATE TABLE refined.votos (id_votacao VARCHAR, id_deputado INTEGER, tipo_voto VARCHAR, data_votacao DATE, sigla_orgao VARCHAR)")
     c.execute("INSERT INTO refined.deputados VALUES (1, 'Dep Um')")
     inserir(c, [
         linha(documento_fornecedor="11111111000111", fornecedor_nome="ALFA LTDA", valor_documento=500, valor_glosa=0, valor_liquido=500),

@@ -5,6 +5,8 @@
 -- (Sim, Não, Abstenção, Obstrução, Artigo 17).
 --
 -- Só votos nominais aparecem aqui: votações simbólicas não têm voto por deputado.
+-- sigla_orgao: órgão da votação (PLEN = plenário; demais siglas = comissões). A participação
+-- usa só PLEN, porque votações de comissão têm poucos votantes e não são comparáveis.
 
 CREATE OR REPLACE TABLE refined.votos AS
 WITH votos AS (
@@ -15,17 +17,18 @@ WITH votos AS (
     SELECT idVotacao, deputado_id, voto FROM raw.votacoes_votos_2025
 ),
 votacoes AS (
-    SELECT id, "data" FROM raw.votacoes_2023
+    SELECT id, "data", siglaOrgao FROM raw.votacoes_2023
     UNION ALL BY NAME
-    SELECT id, "data" FROM raw.votacoes_2024
+    SELECT id, "data", siglaOrgao FROM raw.votacoes_2024
     UNION ALL BY NAME
-    SELECT id, "data" FROM raw.votacoes_2025
+    SELECT id, "data", siglaOrgao FROM raw.votacoes_2025
 )
 SELECT
     NULLIF(TRIM(v.idVotacao), '')                          AS id_votacao,
     TRY_CAST(NULLIF(TRIM(v.deputado_id), '') AS INTEGER)   AS id_deputado,
     NULLIF(TRIM(v.voto), '')                               AS tipo_voto,
-    TRY_CAST(NULLIF(TRIM(t."data"), '') AS DATE)           AS data_votacao
+    TRY_CAST(NULLIF(TRIM(t."data"), '') AS DATE)           AS data_votacao,
+    NULLIF(TRIM(t.siglaOrgao), '')                         AS sigla_orgao
 FROM votos v
 JOIN votacoes t ON t.id = v.idVotacao
 WHERE TRY_CAST(NULLIF(TRIM(t."data"), '') AS DATE) BETWEEN DATE '2023-01-01' AND DATE '2025-12-31';
